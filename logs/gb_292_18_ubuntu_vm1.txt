@@ -1,0 +1,33 @@
+=== Autopilot Run Started: 2026-07-30T15:03:42.184795 ===
+=== Log file: gb_292_18_ubuntu_vm1.txt ===
+
+=== VM Creation: gb_292_18_ubuntu_vm1 ===
+   $ cd /home/vm_images && sudo python3 /tmp/mq_vm.py install --name gb_292_18_ubuntu_vm1 --memory 32768 --num_cpu 4 --disk_size 200G --os_image /home/vm_image/ubuntu-24.04.3-live-server-amd64.iso --debug enable
+   [mq_vm] --- waiting for virt-install to start ---
+   [mq_vm] Namespace(command='install', name='gb_292_18_ubuntu_vm1', memory='32768', num_cpu='4', os_image='/home/vm_image/ubuntu-24.04.3-live-server-amd64.iso', disk_size='200G', disk_path=None, debug='enable', func=<function install at 0x7d048749caf0>)
+   [mq_vm] gb_292_18_ubuntu_vm1
+   [mq_vm] 32768
+   [mq_vm] 4
+   [mq_vm] /home/vm_image/ubuntu-24.04.3-live-server-amd64.iso
+   [mq_vm] 200G
+   [mq_vm] None
+   [mq_vm] >>>>> Generating disk image <<<<<
+   [mq_vm] sudo qemu-img create -f qcow2 gb_292_18_ubuntu_vm1.qcow2 200G
+   [mq_vm] Formatting 'gb_292_18_ubuntu_vm1.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=214748364800 lazy_refcounts=off refcount_bits=16
+   [mq_vm] ./gb_292_18_ubuntu_vm1.qcow2
+   [mq_vm] virt-install --name gb_292_18_ubuntu_vm1 --memory 32768 --virt-type kvm --vcpus 4 --disk path=./gb_292_18_ubuntu_vm1.qcow2,device=disk,format=qcow2 --disk path=./qaic_peergrp.iso,device=cdrom,bus=sata,readonly=on --boot cdrom,hd,menu=on,bios.useserial=true --graphics none --location=/home/vm_image/ubuntu-24.04.3-live-server-amd64.iso,kernel=casper/vmlinuz,initrd=casper/initrd --extra-args='console=ttyS0,115200n8 serial' --console pty,target_type=serial --machine q35 --check all=off --check path_in_use=off
+   [mq_vm] VM doesn't exist
+   [mq_vm] >>>>> Install Start <<<<<
+   [mq_vm] ERROR    Validating install media '/home/vm_image/ubuntu-24.04.3-live-server-amd64.iso' failed: Must specify storage creation parameters for non-existent path '/home/vm_image/ubuntu-24.04.3-live-server-amd64.iso'.
+   [mq_vm] >>>>> Install Done <<<<<
+   [mq_vm] >>>>> Shutting down VM <<<<<
+   [mq_vm] error: failed to get domain 'gb_292_18_ubuntu_vm1'
+   [mq_vm] Err: virsh destroy Failed, Timeout
+   [mq_vm] >>>>> Starting VM <<<<<
+   [mq_vm] INFO 2026-07-30 09:33:44 SUCCESS: qmonitor-proxy.service stopped successfully
+   [mq_vm] WARNING 2026-07-30 09:33:45 Please stop qaic-monitor-grpc-server PID 9049
+   [mq_vm] error: failed to get domain 'gb_292_18_ubuntu_vm1'
+   [mq_vm] Err: virsh start Failed, Timeout
+   [mq_vm] --- reading remaining output ---
+
+=== Log switched (new VM) at 2026-07-30T15:05:49.264024 ===

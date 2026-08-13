@@ -1,0 +1,1345 @@
+=== Autopilot Run Started: 2026-08-05T14:12:50.686678 ===
+=== Log file: vm2.txt ===
+
+=== VM Creation: vm2 ===
+   $ cd /home/vm_images && sudo python3 /tmp/mq_vm.py install --name vm2 --memory 32768 --num_cpu 4 --disk_size 100G --os_image /home/vm_image/ubuntu-24.04.3-live-server-amd64.iso --debug enable
+   [mq_vm] --- waiting for virt-install to start ---
+   [mq_vm] Namespace(command='install', name='vm2', memory='32768', num_cpu='4', os_image='/home/vm_image/ubuntu-24.04.3-live-server-amd64.iso', disk_size='100G', disk_path=None, debug='enable', func=<function install at 0x79b274e39620>)
+   [mq_vm] vm2
+   [mq_vm] 32768
+   [mq_vm] 4
+   [mq_vm] /home/vm_image/ubuntu-24.04.3-live-server-amd64.iso
+   [mq_vm] 100G
+   [mq_vm] None
+   [mq_vm] >>>>> Generating disk image <<<<<
+   [mq_vm] sudo qemu-img create -f qcow2 vm2.qcow2 100G
+   [mq_vm] Formatting 'vm2.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=107374182400 lazy_refcounts=off refcount_bits=16
+   [mq_vm] ./vm2.qcow2
+   [mq_vm] virt-install --name vm2 --memory 32768 --virt-type kvm --vcpus 4 --disk path=./vm2.qcow2,device=disk,format=qcow2 --disk path=./qaic_peergrp.iso,device=cdrom,bus=sata,readonly=on --boot cdrom,hd,menu=on,bios.useserial=true --graphics none --location=/home/vm_image/ubuntu-24.04.3-live-server-amd64.iso,kernel=casper/vmlinuz,initrd=casper/initrd --extra-args='console=ttyS0,115200n8 serial' --console pty,target_type=serial --machine q35 --check all=off --check path_in_use=off
+   [mq_vm] VM doesn't exist
+   [mq_vm] >>>>> Install Start <<<<<
+   [mq_vm] Starting install...
+   [mq_vm] Retrieving 'vmlinuz'                                        |    0 B  00:00 ... 
+   [mq_vm] Retrieving 'initrd'                                         |    0 B  00:00 ... 
+   [mq_vm] Creating domain...                                          |    0 B  00:00     
+   [mq_vm] Running text console command: virsh --connect qemu:///system console vm2
+   [mq_vm] Connected to domain 'vm2'
+   [mq_vm] Escape character is ^] (Ctrl + ])
+   [mq_vm] c[?7l[2J[0mSeaBIOS (version 1.16.3-debian-1.16.3-2)
+   [mq_vm] Machine UUID 43d24a44-64de-45f1-a701-4329c9cb0dce
+   [mq_vm] iPXE (https://ipxe.org) 01:00.0 C000 PCI2.10 PnP PMM+7EFCA590+7EF0A590 C000
+   [mq_vm] Press Ctrl-B to configure iPXE (PCI 01:00.0)...
+   [mq_vm] Press ESC for boot menu.
+   [mq_vm] Booting from ROM..c[?7l[2J
+   [mq_vm] [    0.000000] Linux version 6.8.0-71-generic (buildd@lcy02-amd64-053) (x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #71-Ubuntu SMP PREEMPT_DYNAMIC Tue Jul 22 16:52:38 UTC 2025 (Ubuntu 6.8.0-71.71-generic 6.8.12)
+   [mq_vm] [    0.000000] Command line: console=ttyS0,115200n8 serial
+   [mq_vm] [    0.000000] KERNEL supported cpus:
+   [mq_vm] [    0.000000]   Intel GenuineIntel
+   [mq_vm] [    0.000000]   AMD AuthenticAMD
+   [mq_vm] [    0.000000]   Hygon HygonGenuine
+   [mq_vm] [    0.000000]   Centaur CentaurHauls
+   [mq_vm] [    0.000000]   zhaoxin   Shanghai  
+   [mq_vm] [    0.000000] BIOS-provided physical RAM map:
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000007ffdbfff] usable
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x000000007ffdc000-0x000000007fffffff] reserved
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x00000000b0000000-0x00000000bfffffff] reserved
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x00000000fed1c000-0x00000000fed1ffff] reserved
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x00000000feffc000-0x00000000feffffff] reserved
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x0000000100000000-0x000000087fffffff] usable
+   [mq_vm] [    0.000000] BIOS-e820: [mem 0x000000fd00000000-0x000000ffffffffff] reserved
+   [mq_vm] [    0.000000] NX (Execute Disable) protection: active
+   [mq_vm] [    0.000000] APIC: Static calls initialized
+   [mq_vm] [    0.000000] SMBIOS 3.0.0 present.
+   [mq_vm] [    0.000000] DMI: QEMU Ubuntu 24.04 PC (Q35 + ICH9, 2009), BIOS 1.16.3-debian-1.16.3-2 04/01/2014
+   [mq_vm] [    0.000000] Hypervisor detected: KVM
+   [mq_vm] [    0.000000] kvm-clock: Using msrs 4b564d01 and 4b564d00
+   [mq_vm] [    0.000000] kvm-clock: using sched offset of 3050666029 cycles
+   [mq_vm] [    0.000002] clocksource: kvm-clock: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+   [mq_vm] [    0.000005] tsc: Detected 2799.998 MHz processor
+   [mq_vm] [    0.000667] last_pfn = 0x880000 max_arch_pfn = 0x400000000
+   [mq_vm] [    0.000714] MTRR map: 4 entries (3 fixed + 1 variable; max 19), built from 8 variable MTRRs
+   [mq_vm] [    0.000718] x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WP  UC- WT  
+   [mq_vm] [    0.000783] last_pfn = 0x7ffdc max_arch_pfn = 0x400000000
+   [mq_vm] [    0.003527] found SMP MP-table at [mem 0x000f5430-0x000f543f]
+   [mq_vm] [    0.003541] Using GB pages for direct mapping
+   [mq_vm] [    0.003701] RAMDISK: [mem 0x7b901000-0x7ffcffff]
+   [mq_vm] [    0.004402] ACPI: Early table checksum verification disabled
+   [mq_vm] [    0.004406] ACPI: RSDP 0x00000000000F53F0 000014 (v00 BOCHS )
+   [mq_vm] [    0.004411] ACPI: RSDT 0x000000007FFE2A54 000034 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+   [mq_vm] [    0.004417] ACPI: FACP 0x000000007FFE286C 0000F4 (v03 BOCHS  BXPC     00000001 BXPC 00000001)
+   [mq_vm] [    0.004423] ACPI: DSDT 0x000000007FFDFD80 002AEC (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+   [mq_vm] [    0.004427] ACPI: FACS 0x000000007FFDFD40 000040
+   [mq_vm] [    0.004430] ACPI: APIC 0x000000007FFE2960 000090 (v03 BOCHS  BXPC     00000001 BXPC 00000001)
+   [mq_vm] [    0.004433] ACPI: MCFG 0x000000007FFE29F0 00003C (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+   [mq_vm] [    0.004437] ACPI: WAET 0x000000007FFE2A2C 000028 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+   [mq_vm] [    0.004440] ACPI: Reserving FACP table memory at [mem 0x7ffe286c-0x7ffe295f]
+   [mq_vm] [    0.004441] ACPI: Reserving DSDT table memory at [mem 0x7ffdfd80-0x7ffe286b]
+   [mq_vm] [    0.004442] ACPI: Reserving FACS table memory at [mem 0x7ffdfd40-0x7ffdfd7f]
+   [mq_vm] [    0.004443] ACPI: Reserving APIC table memory at [mem 0x7ffe2960-0x7ffe29ef]
+   [mq_vm] [    0.004444] ACPI: Reserving MCFG table memory at [mem 0x7ffe29f0-0x7ffe2a2b]
+   [mq_vm] [    0.004445] ACPI: Reserving WAET table memory at [mem 0x7ffe2a2c-0x7ffe2a53]
+   [mq_vm] [    0.005172] No NUMA configuration found
+   [mq_vm] [    0.005175] Faking a node at [mem 0x0000000000000000-0x000000087fffffff]
+   [mq_vm] [    0.005186] NODE_DATA(0) allocated [mem 0x87ffd5000-0x87fffffff]
+   [mq_vm] [    0.005669] Zone ranges:
+   [mq_vm] [    0.005670]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+   [mq_vm] [    0.005672]  
+   [mq_vm]  DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+   [mq_vm] [    0.005674]   Normal   [mem 0x0000000100000000-0x000000087fffffff]
+   [mq_vm] [    0.005676]   Device   empty
+   [mq_vm] [    0.005677] Movable zone start for each node
+   [mq_vm] [    0.005679] Early memory node ranges
+   [mq_vm] [    0.005680]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+   [mq_vm] [    0.005682]   node   0: [mem 0x0000000000100000-0x000000007ffdbfff]
+   [mq_vm] [    0.005683]   node   0: [mem 0x0000000100000000-0x000000087fffffff]
+   [mq_vm] [    0.005687] Initmem setup node 0 [mem 0x0000000000001000-0x000000087fffffff]
+   [mq_vm] [    0.005910] On node 0, zone DMA: 1 pages in unavailable ranges
+   [mq_vm] [    0.005926] On node 0, zone DMA: 97 pages in unavailable ranges
+   [mq_vm] [    0.091589] On node 0, zone Normal: 36 pages in unavailable ranges
+   [mq_vm] [    0.094901] ACPI: PM-Timer IO Port: 0x608
+   [mq_vm] [    0.094921] ACPI: LAPIC_NMI (acpi_id[0xff] dfl dfl lint[0x1])
+   [mq_vm] [    0.094975] IOAPIC[0]: apic_id 0, version 17, address 0xfec00000, GSI 0-23
+   [mq_vm] [    0.094978] ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
+   [mq_vm] [    0.094980] ACPI: INT_SRC_OVR (bus 0 bus_irq 5 global_irq 5 high level)
+   [mq_vm] [    0.094982] ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 high level)
+   [mq_vm] [    0.094983] ACPI: INT_SRC_OVR (bus 0 bus_irq 10 global_irq 10 high level)
+   [mq_vm] [    0.094985] ACPI: INT_SRC_OVR (bus 0 bus_irq 11 global_irq 11 high level)
+   [mq_vm] [    0.094989] ACPI: Using ACPI (MADT) for SMP configuration information
+   [mq_vm] [    0.094991] TSC deadline timer available
+   [mq_vm] [    0.094992] smpboot: Allowing 4 CPUs, 0 hotplug CPUs
+   [mq_vm] [    0.095029] kvm-guest: APIC: eoi() replaced with kvm_guest_apic_eoi_write()
+   [mq_vm] [    0.095048] kvm-guest: KVM setup pv remote TLB flush
+   [mq_vm] [    0.095053] kvm-guest: setup PV sched yield
+   [mq_vm] [    0.095063] PM: hibernation: Registered nosave memory: [mem 0x00000000-0x00000fff]
+   [mq_vm] [    0.095065] PM: hibernation: Registered nosave memory: [mem 0x0009f000-0x0009ffff]
+   [mq_vm] [    0.095067] PM: hibernation: Registered nosave memory: [mem 0x000a0000-0x000effff]
+   [mq_vm] [    0.095067] PM: hibernation: Registered nosave memory: [mem 0x000f0000-0x000fffff]
+   [mq_vm] [    0.095069] PM: hibernation: Registered nosave memory: [mem 0x7ffdc000-0x7fffffff]
+   [mq_vm] [    0.095070] PM: hibernation: Registered nosave memory: [mem 0x80000000-0xafffffff]
+   [mq_vm] [    0.095071] PM: hibernation: Registered nosave memory: [mem 0xb0000000-0xbfffffff]
+   [mq_vm] [    0.095072] PM: hibernation: Registered nosave memory: [mem 0xc0000000-0xfed1bfff]
+   [mq_vm] [    0.095073] PM: hibernation: Registered nosave memory: [mem 0xfed1c000-0xfed1ffff]
+   [mq_vm] [    0.095074] PM: hibernation: Registered nosave memory: [mem 0xfed20000-0xfeffbfff]
+   [mq_vm] [    0.095075] PM: hibernation: Registered nosave memory: [mem 0xfeffc000-0xfeffffff]
+   [mq_vm] [    0.095076] PM: hibernation: Registered nosave memory: [mem 0xff000000-0xfffbffff]
+   [mq_vm] [    0.095077] PM: hibernation: Registered nosave memory: [mem 0xfffc0000-0xffffffff]
+   [mq_vm] [    0.095079] [mem 0xc0000000-0xfed1bfff] available for PCI devices
+   [mq_vm] [    0.095080] Booting paravirtualized kernel on KVM
+   [mq_vm] [    0.095083] clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1910969940391419 ns
+   [mq_vm] [    0.095090] setup_percpu: NR_CPUS:8192 nr_cpumask_bits:4 nr_cpu_ids:4 nr_node_ids:1
+   [mq_vm] [    0.095493] percpu: Embedded 86 pages/cpu s229376 r8192 d114688 u524288
+   [mq_vm] [    0.095558] kvm-guest: PV spinlocks enabled
+   [mq_vm] [    0.095561] PV qspinlock hash table entries: 256 (order: 0, 4096 bytes, linear)
+   [mq_vm] [    0.095564] Kernel command line: console=ttyS0,115200n8 serial
+   [mq_vm] [    0.095618] Unknown kernel command line parameters "serial", will be passed to user space.
+   [mq_vm] [    0.095640] random: crng init done
+   [mq_vm] [    0.100822] Dentry cache hash table entries: 4194304 (order: 13, 33554432 bytes, linear)
+   [mq_vm] [    0.103442] Inode-cache hash table entries: 2097152 (order: 12, 16777216 bytes, linear)
+   [mq_vm] [    0.103505] Fallback order for Node 0: 0 
+   [mq_vm] [    0.103510] Built 1 zonelists, mobility grouping on.  Total pages: 8257244
+   [mq_vm] [    0.103512] Policy zone: Normal
+   [mq_vm] [    0.103521] mem auto-init: stack:all(zero), heap alloc:on, heap free:off
+   [mq_vm] [    0.103528] software IO TLB: area num 4.
+   [mq_vm] [    0.189297] Memory: 32785788K/33553896K available (22528K kernel cod
+   [mq_vm] e, 4442K rwdata, 14376K rodata, 5000K init, 4708K bss, 767848K reserved, 0K cma-reserved)
+   [mq_vm] [    0.190364] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+   [mq_vm] [    0.190392] ftrace: allocating 58177 entries in 228 pages
+   [mq_vm] [    0.204097] ftrace: allocated 228 pages with 4 groups
+   [mq_vm] [    0.205080] Dynamic Preempt: voluntary
+   [mq_vm] [    0.205365] rcu: Preemptible hierarchical RCU implementation.
+   [mq_vm] [    0.205366] rcu: 	RCU restricting CPUs from NR_CPUS=8192 to nr_cpu_ids=4.
+   [mq_vm] [    0.205367] 	Trampoline variant of Tasks RCU enabled.
+   [mq_vm] [    0.205368] 	Rude variant of Tasks RCU enabled.
+   [mq_vm] [    0.205369] 	Tracing variant of Tasks RCU enabled.
+   [mq_vm] [    0.205369] rcu: RCU calculated value of scheduler-enlistment delay is 100 jiffies.
+   [mq_vm] [    0.205370] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
+   [mq_vm] [    0.209781] NR_IRQS: 524544, nr_irqs: 456, preallocated irqs: 16
+   [mq_vm] [    0.210035] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+   [mq_vm] [    0.210291] Console: colour *CGA 80x25
+   [mq_vm] [    0.210379] printk: legacy console [ttyS0] enabled
+   [mq_vm] [    0.473495] ACPI: Core revision 20230628
+   [mq_vm] [    0.474853] APIC: Switch to symmetric I/O mode setup
+   [mq_vm] [    0.476782] x2apic enabled
+   [mq_vm] [    0.478096] APIC: Switched APIC routing to: physical x2apic
+   [mq_vm] [    0.479922] kvm-guest: APIC: send_IPI_mask() replaced with kvm_send_ipi_mask()
+   [mq_vm] [    0.482307] kvm-guest: API
+   [mq_vm] C: 
+   [mq_vm] send_IPI_mask_allbutself() replaced with kvm_send_ipi_mask_allbutself()
+   [mq_vm] [    0.485289] kvm-guest: setup PV IPIs
+   [mq_vm] [    0.487832] tsc: Marking TSC unstable due to TSCs unsynchronized
+   [mq_vm] [    0.489876] Calibrating delay loop (skipped) preset value.. 5599.99 BogoMIPS (lpj=2799998)
+   [mq_vm] [    0.490873] x86/cpu: User Mode Instruction Prevention (UMIP) activated
+   [mq_vm] [    0.490873] Last level iTLB entries: 4KB 512, 2MB 255, 4MB 127
+   [mq_vm] [    0.490873] Last level dTLB entries: 4KB 512, 2MB 255, 4MB 127, 1GB 0
+   [mq_vm] [    0.490873] Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+   [mq_vm] [    0.490873] Spectre V2 : Mitigation: Retpolines
+   [mq_vm] [    0.490873] Spectre V2 : Spectre v2 / SpectreRSB mitigation: Filling RSB on context switch
+   [mq_vm] [    0.490873] Spectre V2 : Spectre v2 / SpectreRSB : Filling RSB on VMEXIT
+   [mq_vm] [    0.490873] Spectre V2 : Enabling Speculation Barrier for firmware calls
+   [mq_vm] [    0.490873] RETBleed: Mitigation: untrained return thunk
+   [mq_vm] [    0.490873] Spectre V2 : mitigation: Enabling conditional Indirect Branch Prediction Barrier
+   [mq_vm] [    0.490873] Speculative Store Bypass: Mitigation: Speculative Store Bypass disabled via prctl
+   [mq_vm] [    0.490873] x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'
+   [mq_vm] [    0.490873] x86/fpu: Supporting XSAVE feature 0x002: 'SSE registers'
+   [mq_vm] [    0.490873] x86/fpu: Supporting XSAVE feature 0x004: 'AVX registers'
+   [mq_vm] [    0.490873] x86/fpu: xstate_offset[2]:  576, xstate_sizes[2]:  256
+   [mq_vm] [    0.490873] x86/fpu: Enabled xstate features 0x7, context size is 832 bytes, using 'compacted' format.
+   [mq_vm] [    0.490873] Freeing SMP alternatives memory: 48K
+   [mq_vm] [    0.490873] pid_max: default: 32768 minimum: 301
+   [mq_vm] [    0.490873] LSM: initializing lsm=lockdown,capability,landlock,yama,apparmor,integrity
+   [mq_vm] [    0.490873] landlock: Up and running.
+   [mq_vm] [    0.490873] Yama: becoming mindful.
+   [mq_vm] [    0.490873] AppArmor: AppArmor initialized
+   [mq_vm] [    0.490873] Mount-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+   [mq_vm] [    0.490873] Mountpoint-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+   [mq_vm] [    0.490873] smpboot: CPU0: AMD EPYC 7282 16-Core Processor (family: 0x17, model: 0x31, stepping: 0x0)
+   [mq_vm] [    0.491035] RCU Tasks: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+   [mq_vm] [    0.491906] RCU Tasks Rude: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+   [mq_vm] [    0.492904] RCU Tasks Trace: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+   [mq_vm] [    0.493900] Performance Events: Fam17h+ core perfctr, AMD PMU driver.
+   [mq_vm] [    0.494882] ... version:                0
+   [mq_vm] [    0.495879] ... bit width:              48
+   [mq_vm] [    0.496880] ... generic registers:      6
+   [mq_vm] [    0.497880] ... value mask:             0000ffffffffffff
+   [mq_vm] [    0.498879] ... max period:             00007fffffffffff
+   [mq_vm] [    0.499880] ... fixed-purpose events:   0
+   [mq_vm] [    0.500879] ... event mask:             000000000000003f
+   [mq_vm] [    0.502535] signal: max sigframe size: 1776
+   [mq_vm] [    0.502921] rcu: Hierarchical SRCU implementation.
+   [mq_vm] [    0.503880] rcu: 	Max phase no-delay instances is 400.
+   [mq_vm] [    0.508328] smp: Bringing up secondary CPUs ...
+   [mq_vm] [    0.509012] smpboot: x86: Booting SMP configuration:
+   [mq_vm] [    0.509882] .... node  #0, CPUs:      #1 #2 #3
+   [mq_vm] [    0.512965] smp: Brought up 1 node, 4 CPUs
+   [mq_vm] [    0.514880] smpboot: Max logical packages: 4
+   [mq_vm] [    0.515880] smpboot: Total of 4 processors activated (22399.98 BogoMIPS)
+   [mq_vm] [    0.519045] devtmpfs: initialized
+   [mq_vm] [    0.519926] x86/mm: Memory block size: 128MB
+   [mq_vm] [    0.523544] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+   [mq_vm] [    0.523888] futex hash table entries: 1024 (order: 4, 65536 bytes, linear)
+   [mq_vm] [    0.524951] pinctrl core: initialized pinctrl subsystem
+   [mq_vm] [    0.526103] PM: RTC time: 08:43:00, date: 2026-08-05
+   [mq_vm] [    0.527707] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+   [mq_vm] [    0.528538] DMA: preallocated 4096 KiB GFP_KERNEL pool for atomic allocations
+   [mq_vm] [    0.529336] DMA: preallocated 4096 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+   [mq_vm] [    0.530448] DMA: preallocated 4096 KiB
+   [mq_vm]  GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+   [mq_vm] [    0.530899] audit: initializing netlink subsys (disabled)
+   [mq_vm] [    0.532137] audit: type=2000 audit(1785919380.087:1): state=initialized audit_enabled=0 res=1
+   [mq_vm] [    0.532293] thermal_sys: Registered thermal governor 'fair_share'
+   [mq_vm] [    0.532881] thermal_sys: Registered thermal governor 'bang_bang'
+   [mq_vm] [    0.533880] thermal_sys: Registered thermal governor 'step_wise'
+   [mq_vm] [    0.534880] thermal_sys: Registered thermal governor 'user_space'
+   [mq_vm] [    0.535880] thermal_sys: Registered thermal governor 'power_allocator'
+   [mq_vm] [    0.536892] EISA bus registered
+   [mq_vm] [    0.538897] cpuidle: using governor ladder
+   [mq_vm] [    0.539890] cpuidle: using governor menu
+   [mq_vm] [    0.542593] acpiphp: ACPI Hot Plug PCI Controller Driver version: 0.5
+   [mq_vm] [    0.543361] PCI: ECAM [mem 0xb0000000-0xbfffffff] (base 0xb0000000) for domain 0000 [bus 00-ff]
+   [mq_vm] [    0.543885] PCI: ECAM [mem 0xb0000000-0xbfffffff] reserved as E820 entry
+   [mq_vm] [    0.544894] PCI: Using configuration type 1 for base access
+   [mq_vm] [    0.546138] kprobes: kprobe jump-optimization is enabled. All kprobes are optimized if possible.
+   [mq_vm] [    0.558184] HugeTLB: registered 1.00 GiB page size, pre-allocated 0 pages
+   [mq_vm] [    0.562888] HugeTLB: 16380 KiB vmemmap can be freed for a 1.00 GiB page
+   [mq_vm] [    0.566887] HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+   [mq_vm] [    0.570885] HugeTLB: 28 KiB vmemmap can be freed for a 2.00 MiB page
+   [mq_vm] [    0.576114] ACPI: Added _OSI(Module Device)
+   [mq_vm] [    0.578889] ACPI: Added _OSI(Processor Device)
+   [mq_vm] [    0.581886] ACPI: Added _OSI(3.0 _SCP Extensions)
+   [mq_vm] [    0.584886] ACPI: Added _OSI(Processor Aggregator Device)
+   [mq_vm] [    0.591762] ACPI: 1 ACPI AML tables successfully acquired and loaded
+   [mq_vm] [    0.601974] ACPI: _OSC evaluation for CPUs failed, trying _PDC
+   [mq_vm] [    0.606266] ACPI: Interpreter enabled
+   [mq_vm] [    0.608916] ACPI: PM: (supports S0 S5)
+   [mq_vm] [    0.610887] ACPI: Using IOAPIC for interrupt routing
+   [mq_vm] [    0.614198] PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
+   [mq_vm] [    0.619886] PCI: Using E820 reservations for host bridge windows
+   [mq_vm] [    0.624161] ACPI: Enabled 2 GPEs in block 00 to 3F
+   [mq_vm] [    0.632643] ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-ff])
+   [mq_vm] [    0.634892] acpi PNP0A08:00: _OSC: OS supports [ExtendedConfig ASPM ClockPM Segments MSI EDR HPX-Type3]
+   [mq_vm] [    0.639981] acpi PNP0A08:00: _OSC: platform does not support [PCIeHotplug LTR DPC]
+   [mq_vm] [    0.643023] acpi PNP0A08:00: _OSC: OS now controls [SHPCHotplug PME AER PCIeCapability]
+   [mq_vm] [    0.646459] PCI host bridge to bus 0000:00
+   [mq_vm] [    0.647881] pci_bus 0000:00: root bus resource [io  0x0000-0x0cf7 window]
+   [mq_vm] [    0.651881] pci_bus 0000:00: root bus resource [io  0x0d00-0xffff window]
+   [mq_vm] [    0.653881] pci_bus 0000:00: root bus resource [mem 0x000a0000-0x000bffff window]
+   [mq_vm] [    0.655881] pci_bus 0000:00: root bus resource [mem 0x80000000-0xafffffff window]
+   [mq_vm] [    0.658881] pci_bus 0000:00: root bus resource [mem 0xc0000000-0xfebfffff window]
+   [mq_vm] [    0.660881] pci_bus 0000:00: root bus resource [mem 0x380000000000-0x386fffffffff window]
+   [mq_vm] [    0.663882] pci_bus 0000:00: root bus resource [bus 00-ff]
+   [mq_vm] [    0.665984] pci 0000:00:00.0: [8086:29c0] type 00 class 0x060000 conventional PCI endpoint
+   [mq_vm] [    0.670022] pci 0000:00:01.0: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.677898] pci 0000:00:01.0: BAR 0 [mem 0xfea00000-0xfea00fff]
+   [mq_vm] [    0.679931] pci 0000:00:01.0: PCI bridge to [bus 01]
+   [mq_vm] [    0.681962] pci 0000:00:01.0:   bridge window [mem 0xfe800000-0xfe9fffff]
+   [mq_vm] [    0.686946] pci 0000:00:01.0:   bridge window [mem 0x386800000000-0x386fffffffff 64bit pref]
+   [mq_vm] [    0.691615] pci 0000:00:01.1: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.701880] pci 0000:00:01.1: BAR 0 [mem 0xfea01000-0xfea01fff]
+   [mq_vm] [    0.703930] pci 0000:00:01.1: PCI bridge to [bus 02]
+   [mq_vm] [    0.705962] pci 0000:00:01.1:   bridge window [mem 0xfe600000-0xfe7fffff]
+   [mq_vm] [    0.708814] pci 0000:00:01.1:   bridge window [mem 0x386000000000-0x3867ffffffff 64bit pref]
+   [mq_vm] [    0.713596] pci 0000:00:01.2: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.718832] pci 0000:00:01.2: B
+   [mq_vm] AR 0 [mem 0xfea02000-0xfea02fff]
+   [mq_vm] [    0.719930] pci 0000:00:01.2: PCI bridge to [bus 03]
+   [mq_vm] [    0.722963] pci 0000:00:01.2:   bridge window [mem 0xfe400000-0xfe5fffff]
+   [mq_vm] [    0.725682] pci 0000:00:01.2:   bridge window [mem 0x385800000000-0x385fffffffff 64bit pref]
+   [mq_vm] [    0.730580] pci 0000:00:01.3: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.735897] pci 0000:00:01.3: BAR 0 [mem 0xfea03000-0xfea03fff]
+   [mq_vm] [    0.737930] pci 0000:00:01.3: PCI bridge to [bus 04]
+   [mq_vm] [    0.739971] pci 0000:00:01.3:   bridge window [mem 0xfe200000-0xfe3fffff]
+   [mq_vm] [    0.743729] pci 0000:00:01.3:   bridge window [mem 0x385000000000-0x3857ffffffff 64bit pref]
+   [mq_vm] [    0.748620] pci 0000:00:01.4: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.753715] pci 0000:00:01.4: BAR 0 [mem 0xfea04000-0xfea04fff]
+   [mq_vm] [    0.755929] pci 0000:00:01.4: PCI bridge to [bus 05]
+   [mq_vm] [    0.756962] pci 0000:00:01.4:   bridge window [mem 0xfe000000-0xfe1fffff]
+   [mq_vm] [    0.760675] pci 0000:00:01.4:   bridge window [mem 0x384800000000-0x384fffffffff 64bit pref]
+   [mq_vm] [    0.765364] pci 0000:00:01.5: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.769650] pci 0000:00:01.5: BAR 0 [mem 0xfea05000-0xfea05fff]
+   [mq_vm] [    0.771930] pci 0000:00:01.5: PCI bridge to [bus 06]
+   [mq_vm] [    0.773962] pci 0000:00:01.5:   bridge window [mem 0xfde00000-0xfdffffff]
+   [mq_vm] [    0.776591] pci 0000:00:01.5:   bridge window [mem 0x384000000000-0x3847ffffffff 64bit pref]
+   [mq_vm] [    0.781604] pci 0000:00:01.6: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.786617] pci 0000:00:01.6: BAR 0 [mem 0xfea06000-0xfea06fff]
+   [mq_vm] [    0.788930] pci 0000:00:01.6: PCI bridge to [bus 07]
+   [mq_vm] [    0.789962] pci 0000:00:01.6:   bridge window [mem 0xfdc00000-0xfddfffff]
+   [mq_vm] [    0.793638] pci 0000:00:01.6:   bridge window [mem 0x383800000000-0x383fffffffff 64bit pref]
+   [mq_vm] [    0.798588] pci 0000:00:01.7: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.802628] pci 0000:00:01.7: BAR 0 [mem 0xfea07000-0xfea07fff]
+   [mq_vm] [    0.804930] pci 0000:00:01.7: PCI bridge to [bus 08]
+   [mq_vm] [    0.806962] pci 0000:00:01.7:   bridge window [mem 0xfda00000-0xfdbfffff]
+   [mq_vm] [    0.809591] pci 0000:00:01.7:   bridge window [mem 0x383000000000-0x3837ffffffff 64bit pref]
+   [mq_vm] [    0.813594] pci 0000:00:02.0: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.819621] pci 0000:00:02.0: BAR 0 [mem 0xfea08000-0xfea08fff]
+   [mq_vm] [    0.820930] pci 0000:00:02.0: PCI bridge to [bus 09]
+   [mq_vm] [    0.822962] pci 0000:00:02.0:   bridge window [mem 0xfd800000-0xfd9fffff]
+   [mq_vm] [    0.825581] pci 0000:00:02.0:   bridge window [mem 0x382800000000-0x382fffffffff 64bit pref]
+   [mq_vm] [    0.830585] pci 0000:00:02.1: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.835622] pci 0000:00:02.1: BAR 0 [mem 0xfea09000-0xfea09fff]
+   [mq_vm] [    0.837930] pci 0000:00:02.1: PCI bridge to [bus 0a]
+   [mq_vm] [    0.838962] pci 0000:00:02.1:   bridge window [mem 0xfd600000-0xfd7fffff]
+   [mq_vm] [    0.842589] pci 0000:00:02.1:   bridge wind
+   [mq_vm] ow [mem 0x382000000000-0x3827ffffffff 64bit pref]
+   [mq_vm] [    0.847121] pci 0000:00:02.2: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.851650] pci 0000:00:02.2: BAR 0 [mem 0xfea0a000-0xfea0afff]
+   [mq_vm] [    0.853930] pci 0000:00:02.2: PCI bridge to [bus 0b]
+   [mq_vm] [    0.855962] pci 0000:00:02.2
+   [mq_vm] :   bridge windo
+   [mq_vm] w [
+   [mq_vm] mem 
+   [mq_vm] 0xfd400000-0xfd5fffff]
+   [mq_vm] [    0.858623] pci 0000:00:02.2:   bridge window [mem 0x381800000000-0x381fffffffff 64bit pref]
+   [mq_vm] [    0.862576] pci 0000:00:02.3: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.869568] pci 0000:00:02.3: BAR 0 [mem 0xfea0b000-0xfea0bfff]
+   [mq_vm] [    0.871930] pci 0000:00:02.3: PCI bridge to [bus 0c]
+   [mq_vm] [    0.872962] pci 0000:00:02.3:   bridge window [mem 0xfd200000-0xfd3fffff]
+   [mq_vm] [    0.876641] pci 0000:00:02.3:   bridge window [mem 0x381000000000-0x3817ffffffff 64bit pref]
+   [mq_vm] [    0.880630] pci 0000:00:02.4: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.885897] pci 0000:00:02.4: BAR 0 [mem 0xfea0c000-0xfea0cfff]
+   [mq_vm] [    0.887930] pci 0000:00:02.4: PCI bridge to [bus 0d]
+   [mq_vm] [    0.890963] pci 0000:00:02.4:   bridge window [mem 0xfd000000-0xfd1fffff]
+   [mq_vm] [    0.893715] pci 0000:00:02.4:   bridge window [mem 0x380800000000-0x380fffffffff 64bit pref]
+   [mq_vm] [    0.897594] pci 0000:00:02.5: [1b36:000c] type 01 class 0x060400 PCIe Root Port
+   [mq_vm] [    0.902635] pci 0000:00:02.5: BAR 0 [mem 0xfea0d000-0xfea0dfff]
+   [mq_vm] [    0.904930] pci 0000:00:02.5: PCI bridge to [bus 0e]
+   [mq_vm] [    0.905962] pci 0000:00:02.5:   bridge window [mem 0xfce00000-0xfcffffff]
+   [mq_vm] [    0.909603] pci 0000:00:02.5:   bridge window [mem 0x380000000000-0x3807ffffffff 64bit pref]
+   [mq_vm] [    0.923313] pci 0000:00:1f.0: [8086:2918] type 00 class 0x060100 conventional PCI endpoint
+   [mq_vm] [    0.926693] pci 0000:00:1f.0: quirk: [io  0x0600-0x067f] claimed by ICH6 ACPI/GPIO/TCO
+   [mq_vm] [    0.930372] pci 0000:00:1f.2: [8086:2922] type 00 class 0x010601 conventional PCI endpoint
+   [mq_vm] [    0.934717] pci 0000:00:1f.2: BAR 4 [io  0xc040-0xc05f]
+   [mq_vm] [    0.935898] pci 0000:00:1f.2: BAR 5 [mem 0xfea0e000-0xfea0efff]
+   [mq_vm] [    0.938613] pci 0000:00:1f.3: [8086:2930] type 00 class 0x0c0500 conventional PCI endpoint
+   [mq_vm] [    0.942962] pci 0000:00:1f.3: BAR 4 [io  0x0700-0x073f]
+   [mq_vm] [    0.945946] acpiphp: Slot [0] registered
+   [mq_vm] [    0.947211] pci 0000:01:00.0: [1af4:1041] type 00 class 0x020000 PCIe Endpoint
+   [mq_vm] [    0.951914] pci 0000:01:00.0: BAR 1 [mem 0xfe880000-0xfe880fff]
+   [mq_vm] [    0.953948] pci 0000:01:00.0: BAR 4 [mem 0x386800000000-0x386800003fff 64bit pref]
+   [mq_vm] [    0.956898] pci 0000:01:00.0: ROM [mem 0xfe800000-0xfe87ffff pref]
+   [mq_vm] [    0.962064] pci 0000:00:01.0: PCI bridge to [bus 01]
+   [mq_vm] [    0.965042] acpiphp: Slot [0-2] registered
+   [mq_vm] [    0.967149] pci 0000:02:00.0: [1b36:000d] type 00 class 0x0c0330 PCIe Endpoint
+   [mq_vm] [    0.969914] pci 0000:02:00.0: BAR 0 [mem 0xfe600000-0xfe603fff 64bit]
+   [mq_vm] [    0.974299] pci 0000:00:01.1: PCI bridge to [bus 02]
+   [mq_vm] [    0.978005] acpiphp: Slot [0-3] registered
+   [mq_vm] [    0.979218] pci 0000:03:00.0: [1af4:1043] type 00 class 0x078000 PCIe Endpoint
+   [mq_vm] [    0.983864] pci 0000:03:00.0: BAR 1 [mem 0xfe400000-0xfe400fff]
+   [mq_vm] [    0.985948] pci 0000:03:00.0: BAR 4 [mem 0x385800000000-0x385800003fff 64bit pref]
+   [mq_vm] [    0.991998] pci 0000:00:01.2: PCI bridge to [bus 03]
+   [mq_vm] [    0.995038] acpiphp: Slot [0-4] registered
+   [mq_vm] [    0.996209] pci 0000:04:00.0: [1af4:1042] type 00 class 0x010000 PCIe Endpoint
+   [mq_vm] [    1.000922] pci 0000:04:00.0: BAR 1 [mem 0xfe200000-0xfe200fff]
+   [mq_vm] [    1.003948] pci 0000:04:00.0: BAR 4 [mem 0x385000000000-0x385000003fff 64bit pref]
+   [mq_vm] [    1.009062] pci 0000:00:01.3: PCI bridge to [bus 04]
+   [mq_vm] [    1.012118] acpiphp: Slot [0-5] registered
+   [mq_vm] [    1.014202] pci 0000:05:00.0: [1af4:1045] type 00 class 0x00ff00 PCIe Endpoint
+   [mq_vm] [    1.017980] pci 0000:05:00.0: BAR 4 [mem 0x384800000000-0x384800003fff 64bit pref]
+   [mq_vm] [    1.022964] pci 0000:00:01.4: PCI bridge to [bus 05]
+   [mq_vm] [    1.026038] acpiphp: Slot [0-6] registered
+   [mq_vm] [    1.028219] pci 0000:06:00.0: [1af4:1044] type 00 class 0x00ff00 PCIe Endpoint
+   [mq_vm] [    1.031592] pci 0000:06:00.0: BAR 1 [mem 0xfde00000-0xfde00fff]
+   [mq_vm] [    1.034948] pci 0000:06:00.0: BAR 4 [mem 0x384000000000-0x384000003fff 64bit pref]
+   [mq_vm] [    1.040030] pci 0000:00:01.5: PCI bridge to [bus 06]
+   [mq_vm] [    1.043119] acpiphp: Slot [0-7] registered
+   [mq_vm] [    1.045210] pci 0000:00:01.6: PCI bridge to [bus 07]
+   [mq_vm] [    1.048005] acpiphp: Slot [0-8] registered
+   [mq_vm] [    1.049209] pci 0000:00:01.7: PCI bridge to [bus 08]
+   [mq_vm] [    1.052038] acpiphp: Slot [0-9] registered
+   [mq_vm] [    1.054209] pci 0000:00:02.0:
+   [mq_vm]  PCI bridge to [bus 09]
+   [mq_vm] [    1.057021] acpiphp: Slot [0-10] registered
+   [mq_vm] [    1.058218] pci 0000:00:02.1: PCI bridge to [bus 0a]
+   [mq_vm] [    1.061038] acpiphp: Slot [0-11] registered
+   [mq_vm] [    1.063210] pci 0000:00:02.2: PCI bridge to [bus 0b]
+   [mq_vm] [    1.067200] acpiphp: Slot [0-12] registered
+   [mq_vm] [    1.068220] pci 0000:00:02.3: PCI bridge to [bus 0c]
+   [mq_vm] [    1.071050] acpiphp: Slot [0-13] registered
+   [mq_vm] [    1.073210] pci 0000:00:02.4: PCI bridge to [bus 0d]
+   [mq_vm] [    1.076021] acpiphp: Slot [0-14] registered
+   [mq_vm] [    1.077209] pci 0000:00:02.5: PCI bridge to [bus 0e]
+   [mq_vm] [    1.098804] ACPI: PCI: Interrupt link LNKA configured for IRQ 10
+   [mq_vm] [    1.101056] ACPI: PCI: Interrupt link LNKB configured for IRQ 10
+   [mq_vm] [    1.104045] ACPI: PCI: Interrupt link LNKC configured for IRQ 11
+   [mq_vm] [    1.106045] ACPI: PCI: Interrupt link LNKD configured for IRQ 11
+   [mq_vm] [    1.109045] ACPI: PCI: Interrupt link LNKE configured for IRQ 10
+   [mq_vm] [    1.111045] ACPI: PCI: Interrupt link LNKF configured for IRQ 10
+   [mq_vm] [    1.113043] ACPI: PCI: Interrupt link LNKG configured for IRQ 11
+   [mq_vm] [    1.115045] ACPI: PCI: Interrupt link LNKH configured for IRQ 11
+   [mq_vm] [    1.117950] ACPI: PCI: Interrupt link GSIA configured for IRQ 16
+   [mq_vm] [    1.119898] ACPI: PCI: Interrupt link GSIB configured for IRQ 17
+   [mq_vm] [    1.121896] ACPI: PCI: Interrupt link GSIC configured for IRQ 18
+   [mq_vm] [    1.123898] ACPI: PCI: Interrupt link GSID configured for IRQ 19
+   [mq_vm] [    1.125897] ACPI: PCI: Interrupt link GSIE configured for IRQ 20
+   [mq_vm] [    1.127897] ACPI: PCI: Interrupt link GSIF configured for IRQ 21
+   [mq_vm] [    1.129897] ACPI: PCI: Interrupt link GSIG configured for IRQ 22
+   [mq_vm] [    1.131897] ACPI: PCI: Interrupt link GSIH configured for IRQ 23
+   [mq_vm] [    1.134531] iommu: Default domain type: Translated
+   [mq_vm] [    1.135880] iommu: DMA domain TLB invalidation policy: lazy mode
+   [mq_vm] [    1.138113] SCSI subsystem initialized
+   [mq_vm] [    1.138929] ACPI: bus type USB registered
+   [mq_vm] [    1.140898] usbcore: registered new interface driver usbfs
+   [mq_vm] [    1.142892] usbcore: registered new interface driver hub
+   [mq_vm] [    1.143892] usbcore: registered new device driver usb
+   [mq_vm] [    1.145913] pps_core: LinuxPPS API ver. 1 registered
+   [mq_vm] [    1.147880] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+   [mq_vm] [    1.150886] PTP clock support registered
+   [mq_vm] [    1.151933] EDAC MC: Ver: 3.0.0
+   [mq_vm] [    1.154173] NetLabel: Initializing
+   [mq_vm] [    1.155881] NetLabel:  domain hash size = 128
+   [mq_vm] [    1.156880] NetLabel:  protocols = UNLABELED CIPSOv4 CALIPSO
+   [mq_vm] [    1.158908] NetLabel:  unlabeled traffic allowed by default
+   [mq_vm] [    1.160962] mctp: management component transport protocol core
+   [mq_vm] [    1.162882] NET: Registered PF_MCTP protocol family
+   [mq_vm] [    1.164892] PCI: Using ACPI for IRQ routing
+   [mq_vm] [    1.368473] vgaarb: loaded
+   [mq_vm] [    1.370010] clocksource: Switched to clocksource kvm-clock
+   [mq_vm] [    1.371968] VFS: Disk quotas dquot_6.6.0
+   [mq_vm] [    1.373331] VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+   [mq_vm] [    1.375852] AppArmor: AppArmor Filesystem Enabled
+   [mq_vm] [    1.377444] pnp: PnP ACPI init
+   [mq_vm] [    1.378665] system 00:04: [mem 0xb0000000-0xbfffffff window] has been reserved
+   [mq_vm] [    1.381427] pnp: PnP ACPI: found 5 devices
+   [mq_vm] [    1.388664] clocksource: acpi_pm: mask: 0xffffff max_cycles: 0xffffff, max_idle_ns: 2085701024 ns
+   [mq_vm] [    1.391675] NET: Registered PF_INET protocol family
+   [mq_vm] [    1.393645] IP idents hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+   [mq_vm] [    1.416034] tcp_listen_portaddr_hash hash table entries: 16384 (order: 6, 262144 bytes, linear)
+   [mq_vm] [    1.419010] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+   [mq_vm] [    1.421654] TCP established hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+   [mq_vm] [    1.424886] TCP bind hash table entries: 65536 (order: 9, 2097152 bytes, linear)
+   [mq_vm] [    1.427478] TCP: Hash tables configured (established 262144 bind 65536)
+   [mq_vm] [    1.429795] MPTCP token hash table entries: 32768 (order: 7, 786432 bytes, linear)
+   [mq_vm] [    1.432570] UDP hash table entries: 16384 (order: 7, 524288 bytes, linear)
+   [mq_vm] [    1.434922] UDP-Lite hash table entries: 16384 (order: 7, 524288 bytes, linear)
+   [mq_vm] [    1.437444] NET: Registered PF_UNIX/PF_LOCAL protocol family
+   [mq_vm] [    1.439340] NET: Registered PF_XDP protocol family
+   [mq_vm] [    1.440959] pci 0000:00:01.0: bridge window [io  0x1000-0x0fff] to [bus 01] add_size 1000
+   [mq_vm] [    1.443655] pci 0000:00:01.1: bridge window [io  0x1000-0x0fff] to [bus 02] add_size 1000
+   [mq_vm] [    1.446352] pci 0000:00:01.2: bridge window [io  0x1000-0x0fff] to [bus 03] add_size 1000
+   [mq_vm] [    1.449049] pci 0000:00:01.3: bridge window [io  0x1000-0x0fff] to [bus 04] add_size 1000
+   [mq_vm] [    1.451773] pci 0000:00:01.4: bridge window [io  0x1000-0x0fff] to [bus 05] add_size 1000
+   [mq_vm] [    1.454469] pci 0000:00:01.5: bridge window [io  0x1000-0x0fff] to [bus 06] add_size 1000
+   [mq_vm] [    1.457170] pci 0000:00:01.6: bridge window [io  0x1000-0x0fff] to [bus 07] add_size 1000
+   [mq_vm] [    1.459867] pci 0000:00:01.7: bridge window [io  0x1000-0x0fff] to [bus 08] add_size 1000
+   [mq_vm] [    1.462552] pci 0000:00:02.0: bridge window [io  0x1000-0x0fff] to [bus 09] add_size 1000
+   [mq_vm] [    1.465250] pci 0000:00:02.1: bridge window [io  0x1000-0x0fff] to [bus 0a] add_size 1000
+   [mq_vm] [    1.467949] pci 0000:00:02.2: bridge window [io  0x1000-0x0fff] to [bus 0b] add_size 1000
+   [mq_vm] [    1.470641] pci 0000:00:02.3: bridge window [io  0x1000-0x0fff] to [bus 0c] add_size 1000
+   [mq_vm] [    1.473341] pci 0000:00:02.4: bridge window [io  0x1000-0x0fff] to [bus 0d] add_size 1000
+   [mq_vm] [    1.476043] pci 0000:00:02.5: bridge window [io  0x1000-0x0fff] to [bus 0e] add_size 1000
+   [mq_vm] [    1.478756] pci 0000:00:01.0: bridge window [io  0x1000-0x1fff]: assigned
+   [mq_vm] [    1.481003] pci 0000:00:01.1: bridge window [io  0x2000-0x2fff]: assigned
+   [mq_vm] [    1.483254] pci 0000:00:01.2: bridge window [io  0x3000-0x3fff]: assigned
+   [mq_vm] [    1.485506] pci 0000:00:01.3: bridge window [io  0x4000-0x4fff]: assigned
+   [mq_vm] [    1.487769] pci 0000:00:01.4: bridge window [io  0x5000-0x5fff]: assigned
+   [mq_vm] [    1.490016] pci 0000:00:01.5: bridge window [io  0x6000-0x6fff]: assigned
+   [mq_vm] [    1.492261] pci 0000:00:01.6: bridge window [io  0x7000-0x7fff]: assigned
+   [mq_vm] [    1.494508] pci 0000:00:01.7: bridge window [io  0x8000-0x8fff]: assigned
+   [mq_vm] [    1.496765] pci 0000:00:02.0: bridge window [io  0x9000-0x9fff]: assigned
+   [mq_vm] [    1.499038] pci 0000:00:02.1: bridge window [io  0xa000-0xafff]: assigned
+   [mq_vm] [    1.501279] pci 0000:00:02.2: bridge window [io  0xb000-0xbfff]: assigned
+   [mq_vm] [    1.503521] pci 0000:00:02.3: bridge window [io  0xd000-0xdfff]: assigned
+   [mq_vm] [    1.505771] pci 0000:00:02.4: bridge window [io  0xe000-0xefff]: assigned
+   [mq_vm] [    1.508011] pci 0000:00:02.5: bridge window [io  0xf000-0xffff]: assigned
+   [mq_vm] [    1.510256] pci 0000:00:01.0: PCI bridge to [bus 01]
+   [mq_vm] [    1.511934] pci 0000:00:01.0:   bridge window [io  0x1000-0x1fff]
+   [mq_vm] [    1.516458] pci 0000:00:01.0:   bridge window [mem 0xfe800000-0
+   [mq_vm] xfe9fffff]
+   [mq_vm] [    1.520081] pci 0000:00:01.0:   bridge window [mem 0x386800000000-0x386fffffffff 64bit pref]
+   [mq_vm] [    1.525769] pci 0000:00:01.1: PCI bridge to [bus 02]
+   [mq_vm] [    1.527443] pci 0000:00:01.1:   bridge window [io  0x2000-0x2fff]
+   [mq_vm] [    1.531527] pci 0000:00:01.1:   bridge window [mem 0xfe600000-0xfe7fffff]
+   [mq_vm] [    1.535404] pci 0000:00:01.1:   bridge window [mem 0x386000000000-0x3867ffffffff 64bit pref]
+   [mq_vm] [    1.540784] pci 0000:00:01.2: PCI bridge to [bus 03]
+   [mq_vm] [    1.542461] pci 0000:00:01.2:   bridge window [io  0x3000-0x3fff]
+   [mq_vm] [    1.545782] pci 0000:00:01.2:   bridge window [mem 0xfe400000-0xfe5fffff]
+   [mq_vm] [    1.550289] pci 0000:00:01.2:   bridge window [mem 0x385800000000-0x385fffffffff 64bit pref]
+   [mq_vm] [    1.554418] pci 0000:00:01.3: PCI bridge to [bus 04]
+   [mq_vm] [    1.556101] pci 0000:00:01.3:   bridge window [io  0x4000-0x4fff]
+   [mq_vm] [    1.559245] pci 0000:00:01.3:   bridge window [mem 0xfe200000-0xfe3fffff]
+   [mq_vm] [    1.562639] pci 0000:00:01.3:   bridge window [mem 0x385000000000-0x3857ffffffff 64bit pref]
+   [mq_vm] [    1.571070] pci 0000:00:01.4: PCI bridge to [bus 05]
+   [mq_vm] [    1.573319] pci 0000:00:01.4:   bridge window [io  0x5000-0x5fff]
+   [mq_vm] [    1.576542] pci 0000:00:01.4:   bridge window [mem 0xfe000000-0xfe1fffff]
+   [mq_vm] [    1.579518] pci 0000:00:01.4:   bridge window [mem 0x384800000000-0x384fffffffff 64bit pref]
+   [mq_vm] [    1.585275] pci 0000:00:01.5: PCI bridge to [bus 06]
+   [mq_vm] [    1.586973] pci 0000:00:01.5:   bridge window [io  0x6000-0x6fff]
+   [mq_vm] [    1.590019] pci 0000:00:01.5:   bridge window [mem 0xfde00000-0xfdffffff]
+   [mq_vm] [    1.592967] pci 0000:00:01.5:   bridge window [mem 0x384000000000-0x3847ffffffff 64bit pref]
+   [mq_vm] [    1.597205] pci 0000:00:01.6: PCI bridge to [bus 07]
+   [mq_vm] [    1.598895] pci 0000:00:01.6:   bridge window [io  0x7000-0x7fff]
+   [mq_vm] [    1.602114] pci 0000:00:01.6:   bridge window [mem 0xfdc00000-0xfddfffff]
+   [mq_vm] [    1.606760] pci 0000:00:01.6:   bridge window [mem 0x383800000000-0x383fffffffff 64bit pref]
+   [mq_vm] [    1.610809] pci 0000:00:01.7: PCI bridge to [bus 08]
+   [mq_vm] [    1.612493] pci 0000:00:01.7:   bridge window [io  0x8000-0x8fff]
+   [mq_vm] [    1.617157] pci 0000:00:01.7:   bridge window [mem 0xfda00000-0xfdbfffff]
+   [mq_vm] [    1.620036] pci 0000:00:01.7:   bridge window [mem 0x383000000000-0x3837ffffffff 64bit pref]
+   [mq_vm] [    1.624190] pci 0000:00:02.0: PCI bridge to [bus 09]
+   [mq_vm] [    1.625888] pci 0000:00:02.0:   bridge window [io  0x9000-0x9fff]
+   [mq_vm] [    1.630086] pci 0000:00:02.0:   bridge window [mem 0xfd800000-0xfd9fffff]
+   [mq_vm] [    1.632968] pci 0000:00:02.0:   bridge window [mem 0x382800000000-0x382fffffffff 64bit pref]
+   [mq_vm] [    1.637023] pci 0000:00:02.1: PCI bridge to [bus 0a]
+   [mq_vm] [    1.640012] pci 0000:00:02.1:   bridge window [io  0xa000-0xafff]
+   [mq_vm] [    1.643199] pci 0000:00:02.1:   bridge window [mem 0xfd600000-0xfd7fffff]
+   [mq_vm] [    1.646077] pci 0000:00:02.1:   bridge window [mem 0x382000000000-0x3827ffffffff 64bit pref]
+   [mq_vm] [    1.650142] pci 0000:00:02.2: PCI bridge to [bus 0b]
+   [mq_vm] [    1.651854] pci 0000:00:02.2:   bridge window [io  0xb000-0xbfff]
+   [mq_vm] [    1.654931] pci 0000:00:02.2:   bridge window [mem 0xfd400000-0xfd5fffff]
+   [mq_vm] [    1.657839] pci 0000:00:02.2:   bridge window [mem 0x381800000000-0x381fffffffff 64bit pref]
+   [mq_vm] [    1.663695] pci 0000:00:02.3: PCI bridge to [bus 0c]
+   [mq_vm] [    1.665384] pci 0000:00:02.3:   bridge window [io  0xd000-0xdfff]
+   [mq_vm] [    1.668368] pci 0000:00:02.3:   bridge window [mem 0xfd200000-0xfd3fffff]
+   [mq_vm] [    1.671302] pci 0000:00:02.3:   bridge window [mem 0x381000000000-0x3817ffffffff 64bit pref]
+   [mq_vm] [    1.677144] pci 0000:00:02.4: PCI bridge to [bus 0d]
+   [mq_vm] [    1.678848] pci 0000:00:02.4:   bridge window [io  0xe000-0xefff]
+   [mq_vm] [    1.681806] pci 0000:00:02.4:   bridge window [mem 0xfd000000-0xfd1fffff]
+   [mq_vm] [    1.686008] pci 0000:00:02.4:   bridge window [mem 0x380800000000-0x380fffffffff 64bit pref]
+   [mq_vm] [    1.690057] pci 0000:00:02.5: PCI bridge to [bus 0e]
+   [mq_vm] [    1.691758] pci 0000:00:02.5:   bridge window [io  0xf000-0xffff]
+   [mq_vm] [    1.694752] pci 0000:00:02.5:   bridge window [mem 0xfce00000-0xfcffffff]
+   [mq_vm] [    1.698847] pci 0000:00:02.5:   bridge window [mem 0x380000000000-0x3807ffffffff 64bit pref]
+   [mq_vm] [    1.702935] pci_bus 0000:00: resource 4 [io  0x0000-0x0cf7
+   [mq_vm]  window]
+   [mq_vm] [    1.704998] pci_bus 0000:00: resource 5 [io  0x0d00-0xffff window]
+   [mq_vm] [    1.707065] pci_bus 0000:00: resource 6 [mem 0x000a0000-0x000bffff window]
+   [mq_vm] [    1.709347] pci_bus 0000:00: resource 7 [mem 0x80000000-0xafffffff window]
+   [mq_vm] [    1.711626] pci_bus 0000:00: resource 8 [mem 0xc0000000-0xfebfffff window]
+   [mq_vm] [    1.713918] pci_bus 0000:00: resource 9 [mem 0x380000000000-0x386fffffffff window]
+   [mq_vm] [    1.716418] pci_bus 0000:01: resource 0 [io  0x1000-0x1fff]
+   [mq_vm] [    1.718277] pci_bus 0000:01: resource 1 [mem 0xfe800000-0xfe9fffff]
+   [mq_vm] [    1.720361] pci_bus 0000:01: resource 2 [mem 0x386800000000-0x386fffffffff 64bit pref]
+   [mq_vm] [    1.722988] pci_bus 0000:02: resource 0 [io  0x2000-0x2fff]
+   [mq_vm] [    1.724852] pci_bus 0000:02: resource 1 [mem 0xfe600000-0xfe7fffff]
+   [mq_vm] [    1.726933] pci_bus 0000:02: resource 2 [mem 0x386000000000-0x3867ffffffff 64bit pref]
+   [mq_vm] [    1.729544] pci_bus 0000:03: resource 0 [io  0x3000-0x3fff]
+   [mq_vm] [    1.731406] pci_bus 0000:03: resource 1 [mem 0xfe400000-0xfe5fffff]
+   [mq_vm] [    1.733488] pci_bus 0000:03: resource 2 [mem 0x385800000000-0x385fffffffff 64bit pref]
+   [mq_vm] [    1.736121] pci_bus 0000:04: resource 0 [io  0x4000-0x4fff]
+   [mq_vm] [    1.737985] pci_bus 0000:04: resource 1 [mem 0xfe200000-0xfe3fffff]
+   [mq_vm] [    1.740071] pci_bus 0000:04: resource 2 [mem 0x385000000000-0x3857ffffffff 64bit pref]
+   [mq_vm] [    1.742692] pci_bus 0000:05: resource 0 [io  0x5000-0x5fff]
+   [mq_vm] [    1.744561] pci_bus 0000:05: resource 1 [mem 0xfe000000-0xfe1fffff]
+   [mq_vm] [    1.747572] pci_bus 0000:05: resource 2 [mem 0x384800000000-0x384fffffffff 64bit pref]
+   [mq_vm] [    1.750197] pci_bus 0000:06: resource 0 [io  0x6000-0x6fff]
+   [mq_vm] [    1.752076] pci_bus 0000:06: resource 1 [mem 0xfde00000-0xfdffffff]
+   [mq_vm] [    1.754158] pci_bus 0000:06: resource 2 [mem 0x384000000000-0x3847ffffffff 64bit pref]
+   [mq_vm] [    1.756787] pci_bus 0000:07: resource 0 [io  0x7000-0x7fff]
+   [mq_vm] [    1.758640] pci_bus 0000:07: resource 1 [mem 0xfdc00000-0xfddfffff]
+   [mq_vm] [    1.760737] pci_bus 0000:07: resource 2 [mem 0x383800000000-0x383fffffffff 64bit pref]
+   [mq_vm] [    1.763353] pci_bus 0000:08: resource 0 [io  0x8000-0x8fff]
+   [mq_vm] [    1.765210] pci_bus 0000:08: resource 1 [mem 0xfda00000-0xfdbfffff]
+   [mq_vm] [    1.767295] pci_bus 0000:08: resource 2 [mem 0x383000000000-0x3837ffffffff 64bit pref]
+   [mq_vm] [    1.769925] pci_bus 0000:09: resource 0 [io  0x9000-0x9fff]
+   [mq_vm] [    1.771783] pci_bus 0000:09: resource 1 [mem 0xfd800000-0xfd9fffff]
+   [mq_vm] [    1.773851] pci_bus 0000:09: resource 2 [mem 0x382800000000-0x382fffffffff 64bit pref]
+   [mq_vm] [    1.776453] pci_bus 0000:0a: resource 0 [io  0xa000-0xafff]
+   [mq_vm] [    1.778305] pci_bus 0000:0a: resource 1 [mem 0xfd600000-0xfd7fffff]
+   [mq_vm] [    1.780380] pci_bus 0000:0a: resource 2 [mem 0x382000000000-0x3827ffffffff 64bit pref]
+   [mq_vm] [    1.782989] pci_bus 0000:0b: resource 0 [io  0xb000-0xbfff]
+   [mq_vm] [    1.784837] pci_bus 0000:0b: resource 1 [mem 0xfd400000-0xfd5fffff]
+   [mq_vm] [    1.786909] pci_bus 0000:0b: resource 2 [mem 0x381800000000-0x381fffffffff 64bit pref]
+   [mq_vm] [    1.789506] pci_bus 0000:0c: resource 0 [io  0xd000-0xdfff]
+   [mq_vm] [    1.791360] pci_bus 0000:0c: resource 1 [mem 0xfd200000-0xfd3fffff]
+   [mq_vm] [    1.793447] pci_bus 0000:0c: resource 2 [mem 0x381000000000-0x3817ffffffff 64bit pref]
+   [mq_vm] [    1.796055] pci_bus 0000:0d: resource 0 [io  0xe000-0xefff]
+   [mq_vm] [    1.797905] pci_bus 0000:0d: resource 1 [mem 0xfd000000-0xfd1fffff]
+   [mq_vm] [    1.800315] pci_bus 0000:0d: resource 2 [mem 0x380800000000-0x380fffffffff 64bit pref]
+   [mq_vm] [    1.802931] pci_bus 0000:0e: resource 0 [io  0xf000-0xffff]
+   [mq_vm] [    1.804783] pci_bus 0000:0e: resource 1 [mem 0xfce00000-0xfcffffff]
+   [mq_vm] [    1.806862] pci_bus 0000:0e: resource 2 [mem 0x380000000000-0x3807ffffffff 64bit pref]
+   [mq_vm] [    1.810906] ACPI: \_SB_.GSIF: Enabled at IRQ 21
+   [mq_vm] [    1.816752] PCI: CLS 0 bytes, default 64
+   [mq_vm] [    1.818193] PCI-DMA: Using software bounce buffering for IO (SWIOTLB)
+   [mq_vm] [    1.820343] software IO TLB: mapped [mem 0x0000000077901000-0x000000007b901000] (64MB)
+   [mq_vm] [    1.820654] Trying to unpack rootfs image as initramfs...
+   [mq_vm] [    1.823533] Initialise system trusted keyrings
+   [mq_vm] [    1.828186] Key type blacklist registered
+   [mq_vm] [    1.829818] workingset: timestamp_bits=36 max_order=23 bucket_order=0
+   [mq_vm] [    1.832142] zbu
+   [mq_vm] d: loaded
+   [mq_vm] [    1.833274] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+   [mq_vm] [    1.835490] fuse: init (API version 7.39)
+   [mq_vm] [    1.837127] integrity: Platform Keyring initialized
+   [mq_vm] [    1.838774] integrity: Machine keyring initialized
+   [mq_vm] [    1.854030] Key type asymmetric registered
+   [mq_vm] [    1.855410] Asymmetric key parser 'x509' registered
+   [mq_vm] [    1.857069] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 243)
+   [mq_vm] [    1.859764] io scheduler mq-deadline registered
+   [mq_vm] [    1.865045] pcieport 0000:00:01.0: PME: Signaling with IRQ 24
+   [mq_vm] [    1.8
+   [mq_vm] 68408
+   [mq_vm] ] pc
+   [mq_vm] ie
+   [mq_vm] port 
+   [mq_vm] 0000:00:01.0: 
+   [mq_vm] AER:
+   [mq_vm]  enabl
+   [mq_vm] ed with I
+   [mq_vm] RQ 24
+   [mq_vm] [    1.872004] pcieport 0000:00:01.1: PME: Signaling with IRQ 25
+   [mq_vm] [    1.874406] pcieport 0000:00:01.1: AER: enabled with IRQ 25
+   [mq_vm] [    1.879064] pcieport 0000:00:01.2: PME: Signaling with IRQ 26
+   [mq_vm] [    1.881461] pcieport 0000:00:01.2: AER: enabled with IRQ 26
+   [mq_vm] [    1.886570] pcieport 0000:00:01.3: PME: Signaling with IRQ 27
+   [mq_vm] [    1.889012] pcieport 0000:00:01.3: AER: enabled with IRQ 27
+   [mq_vm] [    1.894299] pcieport 0000:00:01.4: PME: Signaling with IRQ 28
+   [mq_vm] [    1.896652] pcieport 0000:00:01.4: AER: enabled with IRQ 28
+   [mq_vm] [    1.902957] pcieport 0000:00:01.5: PME: Signaling with IRQ 29
+   [mq_vm] [    1.905300] pcieport 0000:00:01.5: AER: enabled with IRQ 29
+   [mq_vm] [    1.909556] pcieport 0000:00:01.6: PME: Signaling with IRQ 30
+   [mq_vm] [    1.911906] pcieport 0000:00:01.6: AER: enabled with IRQ 30
+   [mq_vm] [    1.916571] pcieport 0000:00:01.7: PME: Signaling with IRQ 31
+   [mq_vm] [    1.918941] pcieport 0000:00:01.7: AER: enabled with IRQ 31
+   [mq_vm] [    1.923488] ACPI: \_SB_.GSIG: Enabled at IRQ 22
+   [mq_vm] [    1.926629] pcieport 0000:00:02.0: PME: Signaling with IRQ 32
+   [mq_vm] [    1.929003] pcieport 0000:00:02.0: AER: enabled with IRQ 32
+   [mq_vm] [    1.933323] pcieport 0000:00:02.1: PME: Signaling with IRQ 33
+   [mq_vm] [    1.935653] pcieport 0000:00:02.1: AER: enabled with IRQ 33
+   [mq_vm] [    1.939927] pcieport 0000:00:02.2: PME: Signaling with IRQ 34
+   [mq_vm] [    1.944048] pcieport 0000:00:02.2: AER: enabled with IRQ 34
+   [mq_vm] [    1.948427] pcieport 0000:00:02.3: PME: Signaling with IRQ 35
+   [mq_vm] [    1.950758] pcieport 0000:00:02.3: AER: enabled with IRQ 35
+   [mq_vm] [    1.954948] pcieport 0000:00:02.4: PME: Signaling with IRQ 36
+   [mq_vm] [    1.957311] pcieport 0000:00:02.4: AER: enabled with IRQ 36
+   [mq_vm] [    1.961563] pcieport 0000:00:02.5: PME: Signaling with IRQ 37
+   [mq_vm] [    1.965697] pcieport 0000:00:02.5: AER: enabled with IRQ 37
+   [mq_vm] [    1.968246] shpchp: Standard Hot Plug PCI Controller Driver version: 0.4
+   [mq_vm] [    1.970625] input: Power Button as /devices/LNXSYSTM:00/LNXPWRBN:00/input/input0
+   [mq_vm] [    1.973242] ACPI: button: Power Button [PWRF]
+   [mq_vm] [    1.986799] Serial: 8250/16550 driver, 32 ports, IRQ sharing enabled
+   [mq_vm] [    2.017002] 00:00: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
+   [mq_vm] [    2.024419] Freeing initrd memory: 72508K
+   [mq_vm] [    2.048099] Linux agpgart interface v0.103
+   [mq_vm] [    2.053004] loop: module loaded
+   [mq_vm] [    2.054523] virtio_blk virtio2: 4/0/0 default/read/poll queues
+   [mq_vm] [    2.059290] virtio_blk virtio2: [vda] 209715200 512-byte logical blocks (107 GB/100 GiB)
+   [mq_vm] [    2.064086] ACPI: bus type drm_connector registered
+   [mq_vm] [    2.066091] tun: Universal TUN/TAP device driver, 1.6
+   [mq_vm] [    2.071149] PPP generic driver version 2.4.2
+   [mq_vm] [    2.072805] i8042: PNP: PS/2 Controller [PNP0303:KBD,PNP0f13:MOU] at 0x60,0x64 irq 1,12
+   [mq_vm] [    2.076890] serio: i8042 KBD port at 0x60,0x64 irq 1
+   [mq_vm] [    2.079028] serio: i8042 AUX port at 0x60,0x64 irq 12
+   [mq_vm] [    2.081064] mousedev: PS/2 mouse device common for all mice
+   [mq_vm] [    2.083233] rtc_cmos 00:03: RTC can wake from S4
+   [mq_vm] [    2.086080] input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input1
+   [mq_vm] [    2.087095] rtc_cmos 00:03: registered as rtc0
+   [mq_vm] [    2.092575] rtc_cmos 00:03: setting system clock to 2026-08-05T08:43:01 UTC (1785919381)
+   [mq_vm] [    2.098216] rtc_cmos 00:03: alarms up to one day, y3k, 242 bytes nvram
+   [mq_vm] [    2.102631] i2c_dev: i2c /dev entries driver
+   [mq_vm] [    2.105608] device-mapper: core: CONFIG_IMA_DISABLE_HTABLE is disabled. Duplicate IMA measurements will not be recorded in the IMA log.
+   [mq_vm] [    2.113768] device-mapper: uevent: version 1.0.3
+   [mq_vm] [    2.117076] device-mapper: ioctl: 4.48.0-ioctl (2023-03-01) initialised: dm-devel@redhat.com
+   [mq_vm] [    2.122863] platform eisa.0: Probing EISA bus 0
+   [mq_vm] [    2.125940] platform eisa.0: EISA: Cannot allocate resource for mainboard
+   [mq_vm] [    2.130486] platform eisa.0: Cannot allocate resource for EISA slot 1
+   [mq_vm] [    2.134817] platform eisa.0: Cannot allocate resource for EISA slot 2
+   [mq_vm] [    2.139137] platform eisa.0: Cannot allocate resource for EISA slot 3
+   [mq_vm] [    2.143456] platform eisa.0: Cannot allocate resource for EISA slot 4
+   [mq_vm] [    2.147324] platform eisa.0: Cannot allocate resource for EISA slot 5
+   [mq_vm] [    2.150590] platform eisa.0: Cannot allocate re
+   [mq_vm] source for EISA slot 6
+   [mq_vm] [    2.153883] platform eisa.0: Cannot allocate resource for EISA slot 7
+   [mq_vm] [    2.157130] platform eisa.0: Cannot allocate resource for EISA slot 8
+   [mq_vm] [    2.160364] platform eisa.0: EISA: Detected 0 cards
+   [mq_vm] [    2.162850] amd_pstate: the _CPC object is not present in SBIOS or ACPI disabled
+   [mq_vm] [    2.166528] ledtrig-cpu: registered to indicate activity on CPUs
+   [mq_vm] [    2.168854] drop_monitor: Initializing network drop monitor service
+   [mq_vm] [    2.171284] NET: Registered PF_INET6 protocol family
+   [mq_vm] [    2.182408] Segment Routing with IPv6
+   [mq_vm] [    2.184318] In-situ OAM (IOAM) with IPv6
+   [mq_vm] [    2.186359] NET: Registered PF_PACKET protocol family
+   [mq_vm] [    2.189026] Key type dns_resolver registered
+   [mq_vm] [    2.191861] IPI shorthand broadcast: enabled
+   [mq_vm] [    2.196292] sched_clock: Marking stable (1916002570, 279826460)->(2349099499, -153270469)
+   [mq_vm] [    2.200663] registered taskstats version 1
+   [mq_vm] [    2.203236] Loading compiled-in X.509 certificates
+   [mq_vm] [    2.206760] Loaded X.509 cert 'Build time autogenerated kernel key: f3d53e10e06f58a85ab95770bb54fcf8e8e07f82'
+   [mq_vm] [    2.211483] Loaded X.509 cert 'Canonical Ltd. Live Patch Signing 2025 Kmod: d541cef61dc7e793b7eb7e899970a2eef0b5dc8c'
+   [mq_vm] [    2.215811] Loaded X.509 cert 'Canonical Ltd. Live Patch Signing: 14df34d1a87cf37625abec039ef2bf521249b969'
+   [mq_vm] [    2.219811] Loaded X.509 cert 'Canonical Ltd. Kernel Module Signing: 88f752e560a1e0737e31163a466ad7b70a850c19'
+   [mq_vm] [    2.223370] blacklist: Loading compiled-in revocation X.509 certificates
+   [mq_vm] [    2.225817] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing: 61482aa2830d0ab2ad5af10b7250da9033ddcef0'
+   [mq_vm] [    2.229339] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2017): 242ade75ac4a15e50d50c84b0d45ff3eae707a03'
+   [mq_vm] [    2.233083] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (ESM 2018): 365188c1d374d6b07c3c8f240f8ef722433d6a8b'
+   [mq_vm] [    2.236948] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2019): c0746fd6c5da3ae827864651ad66ae47fe24b3e8'
+   [mq_vm] [    2.240673] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v1): a8d54bbb3825cfb94fa13c9f8a594a195c107b8d'
+   [mq_vm] [    2.244572] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v2): 4cf046892d6fd3c9a5b03f98d845f90851dc6a8c'
+   [mq_vm] [    2.248394] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v3): 100437bb6de6e469b581e61cd66bce3ef4ed53af'
+   [mq_vm] [    2.252251] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (Ubuntu Core 2019): c1d57b8f6b743f23ee41f4f7ee292f06eecadfb9'
+   [mq_vm] [    2.260254] Key type .fscrypt registered
+   [mq_vm] [    2.261709] Key type fscrypt-provisioning registered
+   [mq_vm] [    2.268764] cryptd: max_cpu_qlen set to 1000
+   [mq_vm] [    2.274540] AVX2 version of gcm_enc/dec engaged.
+   [mq_vm] [    2.276325] AES CTR mode by8 optimization enabled
+   [mq_vm] [    2.294438] Key type encrypted registered
+   [mq_vm] [    2.295935] AppArmor: AppArmor sha256 policy hashing enabled
+   [mq_vm] [    2.298027] ima: No TPM chip found, activating TPM-bypass!
+   [mq_vm] [    2.300069] Loading compiled-in module X.509 certificates
+   [mq_vm] [    2.302524] Loaded X.509 cert 'Build time autogenerated kernel key: f3d53e10e06f58a85ab95770bb54fcf8e8e07f82'
+   [mq_vm] [    2.306062] ima: Allocated hash algorithm: sha256
+   [mq_vm] [    2.307787] ima: No architecture policies found
+   [mq_vm] [    2.309436] evm: Initialising EVM extended attributes:
+   [mq_vm] [    2.311300] evm: security.selinux
+   [mq_vm] [    2.312509] evm: security.SMACK64
+   [mq_vm] [    2.313732] evm: security.SMACK64EXEC
+   [mq_vm] [    2.315072] evm: security.SMACK64TRANSMUTE
+   [mq_vm] [    2.316550] evm: security.SMACK64MMAP
+   [mq_vm] [    2.317899] evm: security.apparmor
+   [mq_vm] [    2.319135] evm: security.ima
+   [mq_vm] [    2.320228] evm: security.capability
+   [mq_vm] [    2.321525] evm: HMAC attrs: 0x1
+   [mq_vm] [    2.323176] PM:   Magic number: 6:917:724
+   [mq_vm] [    2.324655] block loop4: hash matches
+   [mq_vm] [    2.331901] RAS: Correctable Errors collector initialized.
+   [mq_vm] [    2.334032] clk: Disabling unused clocks
+   [mq_vm] [    2.338197] Freeing unused decrypted memory: 2028K
+   [mq_vm] [    2.340672] Freeing unused kernel image (initmem) memory: 5000K
+   [mq_vm] [    2.342306] Write protecting the kernel read-only data: 38912k
+   [mq_vm] [    2.344661] Freeing unused kernel image (rodata/data gap) memory: 2008K
+   [mq_vm] [    2.404708] x86/mm: Checked W+X mappings: passed, no W+X pages found.
+   [mq_vm] [    2.406485] Run /init as init process
+   [mq_vm] Loading, please wait...
+   [mq_vm] Starting systemd-udevd version 255.4-1ubuntu8.10
+   [mq_vm] [    2.565275] xhci_hcd 0000:02:00.0: xHCI Host Controller
+   [mq_vm] [    2.570861] xhci_hcd 0000:02:00.0: new USB bus registered, assigned bus number 1
+   [mq_vm] [    2.573734] virtio_net virtio0 enp1s0: renamed from eth0
+   [mq_vm] [    2.576806] xhci_hcd 0000:02:00.0: hcc params 0x00087001 hci version 0x100 quirks 0x0000000000000010
+   [mq_vm] [    2.580290] ACPI: \_SB_.GSIA: Enabled at IRQ 16
+   [mq_vm] [    2.584688] xhci_hcd 0000:02:00.0: xHCI Host Controller
+   [mq_vm] [    2.586160] xhci_hcd 0000:02:00.0: new USB bus registered, assigned bus number 2
+   [mq_vm] [    2.588896] xhci_hcd 0000:02:00.0: Host supports USB 3.0 SuperSpeed
+   [mq_vm] [    2.591213] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.08
+   [mq_vm] [    2.593478] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+   [mq_vm] [    2.595697] usb usb1: Product: xHCI Host Controller
+   [mq_vm] [    2.597301] usb usb1: Manufacturer: Linux 6.8.0-71-generic xhci-hcd
+   [mq_vm] [    2.599242] usb usb1: SerialNumber: 0000:02:00.0
+   [mq_vm] [    2.601625] ahci 0000:00:1f.2: AHCI 0001.0000 32 slots 6 ports 1.5 Gbps 0x3f impl SATA mode
+   [mq_vm] [    2.601872] hub 1-0:1.0: USB hub found
+   [mq_vm] [    2.605653] ahci 0000:00:1f.2: flags: 64bit ncq only 
+   [mq_vm] [    2.609446] hub 1-0:1.0: 15 ports detected
+   [mq_vm] [    2.612039] input: VirtualPS/2 VMware VMMouse as /devices/platform/i8042/serio1/input/input4
+   [mq_vm] [    2.616097] input: VirtualPS/2 VMware VMMouse as /devices/platform/i8042/serio1/input/input3
+   [mq_vm] [    2.640558] usb usb2: We don't know the algorithms for LPM for this host, disabling LPM.
+   [mq_vm] [    2.642661] usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 6.08
+   [mq_vm] [    2.644728] usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+   [mq_vm] [    2.646560] usb usb2: Product: xHCI Host Controller
+   [mq_vm] [    2.647821] usb usb2: Manufacturer: Linux 6.8.0-71-generic xhci-hcd
+   [mq_vm] [    2.649547] usb usb2: SerialNumber: 0000:02:00.0
+   [mq_vm] [    2.651768] scsi host0: ahci
+   [mq_vm] [    2.662318] hub 2-0:1.0: USB hub found
+   [mq_vm] [    2.662688] scsi host1: ahci
+   [mq_vm] [    2.664904] scsi host2: ahci
+   [mq_vm] [    2.664996] hub 2-0:1.0: 15 ports detected
+   [mq_vm] [    2.665945] scsi host3: ahci
+   [mq_vm] [    2.668258] scsi host4: ahci
+   [mq_vm] [    2.669354] scsi host5: ahci
+   [mq_vm] [    2.670298] ata1: SATA max UDMA/133 abar m4096@0xfea0e000 port 0xfea0e100 irq 53 lpm-pol 0
+   [mq_vm] [    2.672353] ata2: SATA max UDMA/133 abar m4096@0xfea0e000 port 0xfea0e180 irq 53 lpm-pol 0
+   [mq_vm] [    2.674398] ata3: SATA max UDMA/133 abar m4096@0xfea0e000 port 0xfea0e200 irq 53 lpm-pol 0
+   [mq_vm] [    2.676434] ata4: SATA max UDMA/133 abar m4096@0xfea0e000 port 0xfea0e280 irq 53 lpm-pol 0
+   [mq_vm] [    2.678468] ata5: SATA max UDMA/133 abar m4096@0xfea0e000 port 0xfea0e300 irq 53 lpm-pol 0
+   [mq_vm] [    2.680499] ata6: SATA max UDMA/133 abar m4096@0xfea0e000 port 0xfea0e380 irq 53 lpm-pol 0
+   [mq_vm] [    2.993222] ata1: SATA link up 1.5 Gbps (SStatus 113 SControl 300)
+   [mq_vm] [    2.996957] ata5: SATA link down (SStatus 0 SControl 300)
+   [mq_vm] [    3.000040] ata3: SATA link down (SStatus 0 SControl 300)
+   [mq_vm] [    3.003354] ata4: SATA link down (SStatus 0 SControl 300)
+   [mq_vm] [    3.006645] ata2: SATA link up 1.5 Gbps (SStatus 113 SControl 300)
+   [mq_vm] [    3.010100] ata6: SATA link down (SStatus 0 SControl 300)
+   [mq_vm] [    3.013041] ata2.00: ATAPI: QEMU DVD-ROM, 2.5+, max UDMA/100
+   [mq_vm] [    3.015985] ata2.00: applying bridge limits
+   [mq_vm] [    3.018225] ata1.00: ATAPI: QEMU DVD-ROM, 2.5+, max UDMA/100
+   [mq_vm] [    3.021121] ata1.00: applying bridge limits
+   [mq_vm] [    3.023461] ata2.00: configured for UDMA/100
+   [mq_vm] [    3.026204] ata1.00: configured for UDMA/100
+   [mq_vm] [    3.029588] scsi 0:0:0:0: CD-ROM            QEMU     QEMU DVD-ROM     2.5+ PQ: 0 ANSI: 5
+   [mq_vm] [    3.049929] sr 0:0:0:0: [sr0] scsi3-mmc drive: 4x/4x cd/rw xa/form2 tray
+   [mq_vm] [    3.053221] cdrom: Uniform CD-ROM driver Revision: 3.20
+   [mq_vm] [    3.073536] sr 0:0:0:0: Attached scsi generic sg0 type 5
+   [mq_vm] [    3.076676] scsi 1:0:0:0: CD-ROM            QEMU     QEMU DVD-ROM     2.5+ PQ: 0 ANSI: 5
+   [mq_vm] [    3.109472] sr 1:0:0:0: [sr1] scsi3-mmc drive: 4x/4x cd/rw xa/form2 tray
+   [mq_vm] [    3.125886] sr 1:0:0:0: Attached scsi generic sg1 type 5
+   [mq_vm] Begin: Loading essential drivers ... [    4.507839] raid6: avx2x4   gen() 13833 MB/s
+   [mq_vm] [    4.526839] raid6: avx2x2   gen() 14648 MB/s
+   [mq_vm] [    4.545835] raid6: avx2x1   gen() 14270 MB/s
+   [mq_vm] [    4.547511] raid6: using algorithm avx2x2 gen() 14648 MB/s
+   [mq_vm] [    4.565834] raid6: .... xor() 15360 MB/s, rmw enabled
+   [mq_vm] [    4.567243] raid6: using avx2x2 recovery algorithm
+   [mq_vm] [    4.569737] xor: automatically using best checksumming function   avx       
+   [mq_vm] [    4.572754] async_tx: api initialized (async)
+   [mq_vm] done.
+   [mq_vm] Begin: Running /scripts/init-premount ... done.
+   [mq_vm] Begin: Mounting root file system ... Begin: Running /scripts/nfs-top ... done.
+   [mq_vm] Begin: Running /scripts/nfs-premount ... done.
+   [mq_vm] [    4.732924] loop0: detected capacity change from 0 to 319688
+   [mq_vm] [    4.776407] loop1: detected capacity change from 0 to 282768
+   [mq_vm] [    4.824720] loop2: detected capacity change from 0 to 1355536
+   [mq_vm] [    4.880575] loop3: detected
+   [mq_vm]  capacity change from 0 to 521520
+   [mq_vm] [    4.919511] overlayfs: null uuid detected in lower fs '/', falling back to xino=off,index=off,nfs_export=off.
+   [mq_vm] [    5.261051] evm: overlay not supported
+   [mq_vm] Begin: Running /scripts/casper-premount ... done.
+   [mq_vm] done.
+   [mq_vm] done.
+   [mq_vm] Begin: Creating debconf-communicate fifo mechanism ... done.
+   [mq_vm] Begin: Running /scripts/casper-bottom ... Begin: Moving mount points... ... done.
+   [mq_vm] Begin: Configuring fstab... ... done.
+   [mq_vm] Begin: Setting up locales... ... done.
+   [mq_vm] Begin: Setting up automatic login... ... done.
+   [mq_vm] Begin: Setting hostname... ... done.
+   [mq_vm] Begin: Setting up console keyboard... ... 
+   [mq_vm] done.
+   [mq_vm] Begin: Applying desktop settings... ... done.
+   [mq_vm] Begin: Regenerating SSL certificate... ... done.
+   [mq_vm] Begin: Loading preseed file... ... done.
+   [mq_vm] Begin: Adding live session user... ... 
+   [mq_vm] passwd: password changed.
+   [mq_vm] done.
+   [mq_vm] Begin: Setting up init... ... done.
+   [mq_vm] Begin: Configuring accessibility options... ... done.
+   [mq_vm] Begin: Disabling update-notifier... ... 
+   [mq_vm] done.
+   [mq_vm] Begin: Enabling detection of crashes... ... done.
+   [mq_vm] Begin: Disabling unnecessary KDE services... ... done.
+   [mq_vm] Begin: Disabling the lock screen for LXQt (LP: #2000787)... ... done.
+   [mq_vm] Begin: Adding APT-CDROM source... ... Using CD-ROM mount point /cdrom/
+   [mq_vm] Identifying... [cfd6900289bb51ccfe7f6491017a2b32-2]
+   [mq_vm] Scanning disc for index files...
+   [mq_vm] Found 2 package indexes, 0 source indexes, 0 translation indexes and 1 signatures
+   [mq_vm] Found label 'Ubuntu-Server 24.04.3 LTS _Noble Numbat_ - Release amd64 (20250805.1)'
+   [mq_vm] This disc is called: 
+   [mq_vm] 'Ubuntu-Server 24.04.3 LTS _Noble Numbat_ - Release amd64 (20250805.1)'
+   [mq_vm] Copying package lists...
+   [mq_vm] done.
+   [mq_vm] Begin: Running /scripts/nfs-bottom ... done.
+   [mq_vm] Begin: Running /scripts/init-bottom ... [   10.224880] loop4: detected capacity change from 0 to 319688
+   [mq_vm] [   10.229731] loop5: detected capacity change from 0 to 282768
+   [mq_vm] [   10.234507] overlayfs: "xino" feature enabled using 3 upper inode bits.
+   [mq_vm] done.
+   [mq_vm] [   10.780663] systemd[1]: Inserted module 'autofs4'
+   [mq_vm] [   10.966200] systemd[1]: systemd 255.4-1ubuntu8.10 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -BPF_FRAMEWORK -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+   [mq_vm] [   10.982640] systemd[1]: Detected virtualization kvm.
+   [mq_vm] [   10.985258] systemd[1]: Detected architecture x86-64.
+   [mq_vm] Welcome to [1mUbuntu 24.04.3 LTS[0m!
+   [mq_vm] [   10.995421] systemd[1]: Hostname set to <ubuntu-server>.
+   [mq_vm] [   11.024368] systemd[1]: Initializing machine ID from VM UUID.
+   [mq_vm] [   11.749267] sr 1:0:0:0: [sr1] CDROM not ready.  Make sure there is a disc in the drive.
+   [mq_vm] [   12.041454] systemd[1]: Queued start job for default target graphical.target.
+   [mq_vm] [   12.070904] systemd[1]: Created slice system-modprobe.slice - Slice /system/modprobe.
+   [mq_vm] [[0;32m  OK  [0m] Created slice [0;1;39msystem-modprobe.slice[0m - Slice /system/modprobe.
+   [mq_vm] [   12.078238] systemd[1]: Created slice system-serial\x2dgetty.slice - Slice /system/serial-getty.
+   [mq_vm] [[0;32m  OK  [0m] Created slice [0;1;39msystem-serial\x2dget…slice[0m - Slice /system/serial-getty.
+   [mq_vm] [   12.086073] systemd[1]: Created slice user.slice - User and Session Slice.
+   [mq_vm] [[0;32m  OK  [0m] Created slice [0;1;39muser.slice[0m - User and Session Slice.
+   [mq_vm] [   12.092271] systemd[1]: Started systemd-ask-password-wall.path - Forward Password Requests to Wall Directory Watch.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-ask-password-wall.…[0md Requests to Wall Directory Watch.
+   [mq_vm] [   12.100498] systemd[1]: Set up automount proc-sys-fs-binfmt_misc.automount - Arbitrary Executable File Formats File System Automount Point.
+   [mq_vm] [[0;32m  OK  [0m] Set up automount [0;1;39mproc-sys-fs-binfm…[0mormats File System Automount Point.
+   [mq_vm] [   12.109112] systemd[1]: Expecting device dev-ttyS0.device - /dev/ttyS0...
+   [mq_vm]          Expecting device [0;1;39mdev-ttyS0.device[0m - /dev/ttyS0...
+   [mq_vm] [   12.114984] systemd[1]: Reached target integritysetup.target - Local Integrity Protected Volumes.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mintegritysetup.targ…[0m Local Integrity Protected Volumes.
+   [mq_vm] [   12.123576] systemd[1]: Reached target slices.target - Slice Units.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mslices.target[0m - Slice Units.
+   [mq_vm] [   12.130489] systemd[1]: Reached target snapd.mounts-pre.target - Mounting snaps.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39msnapd.mounts-pre.target[0m - Mounting snaps.
+   [mq_vm] [   12.138690] systemd[1]: Reached target swap.target - Swaps.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mswap.target[0m - Swaps.
+   [mq_vm] [   12.145038] systemd[1]: Reached target veritysetup.target - Local Verity Protected Volumes.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mveritysetup.target[0m - Local Verity Protected Volumes.
+   [mq_vm] [   12.154353] systemd[1]: Listening on dm-event.socket - Device-mapper event daemon FIFOs.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39mdm-event.socket[0m - Device-mapper event daemon FIFOs.
+   [mq_vm] [   12.166293] systemd[1]: Listening on lvm2-lvmpolld.socket - LVM2 poll daemon socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39mlvm2-lvmpolld.socket[0m - LVM2 poll daemon socket.
+   [mq_vm] [   12.175720] systemd[1]: Listening on multipathd.socket - multipathd control socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39mmultipathd.socket[0m - multipathd control socket.
+   [mq_vm] [   12.184891] systemd[1]: Listening on syslog.socket - Syslog Socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msyslog.socket[0m - Syslog Socket.
+   [mq_vm] [   12.192029] systemd[1]: Listening on systemd-initctl.socket - initctl Compatibility Named Pipe.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msystemd-initctl.socke…[0m- initctl Compatibility Named Pipe.
+   [mq_vm] [   12.204206] systemd[1]: Listening on systemd-journald-dev-log.socket - Journal Socket (/dev/log).
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msystemd-journald-dev-…socket[0m - Journal Socket (/dev/log).
+   [mq_vm] [   12.214057] systemd[1]: Listening on systemd-journald.socket - Journal Socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msystemd-journald.socket[0m - Journal Socket.
+   [mq_vm] [   12.222334] systemd[1]: Listening on systemd-networkd.socket - Network Service Netlink Socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msystemd-networkd.socket[0m - Network Service Netlink Socket.
+   [mq_vm] [   12.231810] systemd[1]: systemd-pcrextend.socket - TPM2 PCR Extension (Varlink) was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+   [mq_vm] [   12.241041] systemd[1]: Listening on systemd-udevd-control.socket - udev Control Socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msystemd-udevd-control.socket[0m - udev Control Socket.
+   [mq_vm] [   12.250093] systemd[1]: Listening on systemd-udevd-kernel.socket - udev Kernel 
+   [mq_vm] Socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msystemd-udevd-kernel.socket[0m - udev Kernel Socket.
+   [mq_vm] [   12.272936] systemd[1]: Mounting dev-hugepages.mount - Huge Pages File System...
+   [mq_vm]          Mounting [0;1;39mdev-hugepages.mount[0m - Huge Pages File System...
+   [mq_vm] [   12.281958] systemd[1]: Mounting dev-mqueue.mount - POSIX Message Queue File System...
+   [mq_vm]          Mounting [0;1;39mdev-mqueue.mount[0m - POSIX Message Queue File System...
+   [mq_vm] [   12.291592] systemd[1]: Mounting sys-kernel-debug.mount - Kernel Debug File System...
+   [mq_vm]          Mounting [0;1;39msys-kernel-debug.mount[0m - Kernel Debug File System...
+   [mq_vm] [   12.300889] systemd[1]: Mounting sys-kernel-tracing.mount - Kernel Trace File System...
+   [mq_vm]          Mounting [0;1;39msys-kernel-tracing.mount[0m - Kernel Trace File System...
+   [mq_vm] [   12.310471] systemd[1]: Starting systemd-journald.service - Journal Service...
+   [mq_vm]          Starting [0;1;39msystemd-journald.service[0m - Journal Service...
+   [mq_vm] [   12.319128] systemd[1]: Starting keyboard-setup.service - Set the console keyboard layout...
+   [mq_vm]          Starting [0;1;39mkeyboard-setup.service[0m - Set the console keyboard layout...
+   [mq_vm] [   12.329512] systemd[1]: Starting kmod-static-nodes.service - Create List of Static Device Nodes...
+   [mq_vm]          Starting [0;1;39mkmod-static-nodes.service[0m…eate List of Static Device Nodes...
+   [mq_vm] [   12.342147] systemd[1]: Starting lvm2-monitor.service - Monitoring of LVM2 mirrors, snapshots etc. using dmeventd or progress polling...
+   [mq_vm]          Starting [0;1;39mlvm2-monitor.service[0m - Mo…ing dmeventd or progress polling...
+   [mq_vm] [   12.359681] systemd[1]: Starting modprobe@configfs.service - Load Kernel Module configfs...
+   [mq_vm]          Starting [0;1;39mmodprobe@configfs.service[0m - Load Kernel Module configfs...
+   [mq_vm] [   12.370235] systemd[1]: Starting modprobe@dm_mod.service - Load Kernel Module dm_mod...
+   [mq_vm]          Starting [0;1;39mmodprobe@dm_mod.service[0m - Load Kernel Module dm_mod...
+   [mq_vm] [   12.379969] systemd[1]: Starting modprobe@drm.service - Load Kernel Module drm...
+   [mq_vm]          Starting [0;1;39mmodprobe@drm.service[0m - Load Kernel Module drm...
+   [mq_vm] [   12.395169] systemd-journald[809]: Collecting audit messages is disabled.
+   [mq_vm] [   12.395
+   [mq_vm] 319] systemd[1]: Starting modprobe@efi_pstore.service - Load Kernel Module 
+   [mq_vm] efi_pstor
+   [mq_vm] e...
+   [mq_vm]     Starting [0;1;39mmodprobe@efi_pstore.servi…[0m - Load Kernel Module efi_pstore...
+   [mq_vm] [   12.408462] systemd[1]: Starting modprobe@fuse.service - Load Kernel Module fuse...
+   [mq_vm]          Starting [0;1;39mmodprobe@fuse.service[0m - Load Kernel Module fuse...
+   [mq_vm] [   12.421057] systemd[1]: Starting modprobe@loop.service - Load Kernel Module loop...
+   [mq_vm]          Starting [0;1;39mmodprobe@loop.service[0m - Load Kernel Module loop...
+   [mq_vm] [   12.442313] systemd[1]: netplan-ovs-cleanup.service - OpenVSwitch configuration for cleanup was skipped because of an unmet condition check (ConditionFileIsExecutable=/usr/bin/ovs-vsctl).
+   [mq_vm] [   12.471959] systemd[1]: Starting systemd-modules-load.service - Load Kernel Modules...
+   [mq_vm]          Starting [0;1;39msystemd-modules-load.service[0m - Load Kernel Modules...
+   [mq_vm] [   12.476644] systemd[1]: systemd-pcrmachine.service - TPM2 PCR Machine ID Measurement was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+   [mq_vm] [   12.481556] systemd[1]: Starting systemd-remount-fs.service - Remount Root and Kernel File Systems...
+   [mq_vm]          Starting [0;1;39msystemd-remount-fs.servic…[0munt Root and Kernel File Systems...
+   [mq_vm] [   12.486705] systemd[1]: systemd-tpm2-setup-early.service - TPM2 SRK Setup (Early) was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+   [mq_vm] [   12.492693] systemd[1]: Starting systemd-udev-trigger.service - Coldplug All udev Devices...
+   [mq_vm]          Starting [0;1;39msystemd-udev-trigger.service[0m - Coldplug All udev Devices...
+   [mq_vm] [   12.499451] systemd[1]: Started systemd-journald.service - Journal Service.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-journald.service[0m - Journal Service.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39mdev-hugepages.mount[0m - Huge Pages File System.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39mdev-mqueue.mount[0m - POSIX Message Queue File System.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39msys-kernel-debug.mount[0m - Kernel Debug File System.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39msys-kernel-tracing.mount[0m - Kernel Trace File System.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mkeyboard-setup.service[0m - Set the console keyboard layout.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mkmod-static-nodes.service[0m…Create List of Static Device Nodes.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mmodprobe@configfs.service[0m - Load Kernel Module configfs.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mmodprobe@dm_mod.service[0m - Load Kernel Module dm_mod.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mmodprobe@drm.service[0m - Load Kernel Module drm.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mmodprobe@efi_pstore.service[0m - Load Kernel Module efi_pstore.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mmodprobe@fuse.service[0m - Load Kernel Module fuse.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mmodprobe@loop.service[0m - Load Kernel Module loop.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-remount-fs.servic…[0mmount Root and Kernel File Systems.
+   [mq_vm]          Mounting [0;1;39msys-fs-fuse-connections.mount[0m - FUSE Control File System...
+   [mq_vm]          Mounting [0;1;39msys-kernel-config.mount[0m - Kernel Configuration File System...
+   [mq_vm]          Starting [0;1;39mmultipathd.service[0m - Devi…pper Multipath Device Controller...
+   [mq_vm]          Starting [0;1;39msystemd-journal-flush.ser…[0msh Journal to Persistent Storage...
+   [mq_vm]          Starting [0;1;39msystemd-random-seed.service[0m - Load/Save OS Random Seed...
+   [mq_vm]          Starting [0;1;39msystemd-tmpfiles-setup-de…[0m Device Nodes in /dev gracefully...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-modules-load.service[0m - Load Kernel Modules.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39msys-fs-fuse-connections.mount[0m - FUSE Control File System.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39msys-kernel-config.mount[0m - Kernel Configuration File System.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-random-seed.service[0m - Load/Save OS Random Seed.
+   [mq_vm]          Starting [0;1;39msystemd-sysctl.service[0m - Apply Kernel Variables...
+   [mq_vm] [   12.712043] systemd-journald[809]: Received client request to 
+   [mq_vm] flush runtime journal.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-journal-flush.ser…[0mlush Journal to Persistent Storage.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mlvm2-monitor.service[0m - Mo…using dmeventd or progress polling.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-udev-trigger.service[0m - Coldplug All udev Devices.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-tmpfiles-setup-de…[0mic Device Nodes in /dev gracefully.
+   [mq_vm]          Starting [0;1;39msystemd-sysusers.service[0m - Create System Users...
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mmultipathd.service[0m - Devic…Mapper Multipath Device Controller.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-sysctl.service[0m - Apply Kernel Variables.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-sysusers.service[0m - Create System Users.
+   [mq_vm]          Starting [0;1;39msystemd-tmpfiles-setup-de…[0meate Static Device Nodes in /dev...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-tmpfiles-setup-de…[0mCreate Static Device Nodes in /dev.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mlocal-fs-pre.target[0m…Preparation for Local File Systems.
+   [mq_vm]          Mounting [0;1;39msnap-core22-2045.mount[0m - …t unit for core22, revision 2045...
+   [mq_vm]          Mounting [0;1;39msnap-snapd-24792.mount[0m - …t unit for snapd, revision 24792...
+   [mq_vm]          Mounting [0;1;39msnap-subiquity-6806.mount[0m…nit for subiquity, revision 6806...
+   [mq_vm]          Mounting [0;1;39mtmp.mount[0m
+   [mq_vm]  - /
+   [mq_vm] tmp...
+   [mq_vm]          Starting [0;1;39msystemd-udevd.service[0m - R…ager for Device Events and Files...
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39mtmp.mount[0m - /tmp.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39msnap-snapd-24792.mount[0m - Mount unit for snapd, revision 24792.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39msnap-subiquity-6806.mount[0m … unit for subiquity, revision 6806.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39msnap-core22-2045.mount[0m - Mount unit for core22, revision 2045.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39msnapd.mounts.target[0m - Mounted snaps.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mlocal-fs.target[0m - Local File Systems.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msystemd-sysext.socket[0m…tension Image Management (Varlink).
+   [mq_vm]          Starting [0;1;39mconsole-setup.service[0m - Set console font and keymap...
+   [mq_vm]          Starting [0;1;39mfinalrd.service[0m - Create …time dir for shutdown pivot root...
+   [mq_vm]          Starting [0;1;39mldconfig.service[0m - Rebuild Dynamic Linker Cache...
+   [mq_vm]          Starting [0;1;39mplymouth-read-write.servi…[0mymouth To Write Out Runtime Data...
+   [mq_vm]          Starting [0;1;39msnapd.apparmor.service[0m - …iles managed internally by snapd...
+   [mq_vm]          Starting [0;1;39msystemd-binfmt.service[0m - Set Up Additional Binary Formats...
+   [mq_vm]          Starting [0;1;39msystemd-tmpfiles-setup.se…[0me Volatile Files and Directories...
+   [mq_vm]          Starting [0;1;39mufw.service[0m - Uncomplicated firewall...
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-udevd.service[0m - Ru…anager for Device Events and Files.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mconsole-setup.service[0m - Set console font and keymap.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mfinalrd.service[0m - Create …untime dir for shutdown pivot root.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mplymouth-read-write.servi…[0mPlymouth To Write Out Runtime Data.
+   [mq_vm] [[0;32m  OK  [0m] Found device [0;1;39mdev-ttyS0.device[0m - /dev/ttyS0.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mufw.service[0m - Uncomplicated firewall.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-ask-password-conso…[0mequests to Console Directory Watch.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mcryptsetup.target[0m - Local Encrypted Volumes.
+   [mq_vm]          Mounting [0;1;39mproc-sys-fs-binfmt_misc.m…[0mcutable File Formats File System...
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msystemd-rfkill.socket[0m…ll Switch Status /dev/rfkill Watch.
+   [mq_vm] [[0;32m  OK  [0m] Mounted [0;1;39mproc-sys-fs-binfmt_misc.mo…[0mxecutable File Formats File System.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-binfmt.service[0m - Set Up Additional Binary Formats.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-tmpfiles-setup.se…[0mate Volatile Files and Directories.
+   [mq_vm]          Starting [0;1;39msystemd-journal-catalog-u…ervice[0m - Rebuild Journal Catalog...
+   [mq_vm]          Starting [0;1;39msystemd-resolved.service[0m - Network Name Resolution...
+   [mq_vm]          Starting [0;1;39msystemd-timesyncd.service[0m - Network Time Synchronization...
+   [mq_vm]          Starting [0;1;39msystemd-update-utmp.servi…[0mord System Boot/Shutdown in UTMP...
+   [mq_vm]          Starting [0;1;39mcloud-init-local.service[0m …-init: Local Stage (pre-network)...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-journal-catalog-u….service[0m - Rebuild Journal Catalog.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-update-utmp.servi…[0mecord System Boot/Shutdown in UTMP.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-timesyncd.service[0m - Network Time Synchronization.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mtime-set.target[0m - System Time Set.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msnapd.apparmor.service[0m - …ofiles managed internally by snapd.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-resolved.service[0m - Network Name Resolution.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mnss-lookup.target[0m - Host and Network Name Lookups.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mldconfig.service[0m - Rebuild Dynamic Linker Cache.
+   [mq_vm]          Starting [0;1;39msystemd-update-done.service[0m - Update is Completed...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-update-done.service[0m - Update is Completed.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mcloud-init-local.service[0m …ud-init: Local Stage (pre-network).
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mnetwork-pre.target[0m - Preparation for Network.
+   [mq_vm]          Starting [0;1;39msystemd-networkd.service[0m - Network Configuration...
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-networkd.service[0m - Network Configuration.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mnetwork.target[0m - Network.
+   [mq_vm]          Starting [0;1;39msystemd-networkd-wait-onl…[0mait for Network to be Configured...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-networkd-wait-onl…[0m Wait for Network to be Configured.
+   [mq_vm]          Starting [0;1;39mcloud-init.service[0m - Cloud-init: Network Stage...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mcloud-init.service[0m - Cloud-init: Network Stage.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mcloud-config.target[0m - Cloud-config availability.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mnetwork-online.target[0m - Network is Online.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39msysinit.target[0m - System Initialization.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mapt-daily.timer[0m - Daily apt download activities.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mapt-daily-upgrade.timer[0m - …y apt upgrade and clean activities.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mdpkg-db-backup.timer[0m - Daily dpkg database backup timer.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39me2scrub_all.timer[0m - Period…Metadata Check for All Filesystems.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mfstrim.timer[0m - Discard unused filesystem blocks once a week.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mfwupd-refresh.timer[0m - Refresh fwupd metadata regularly.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mlogrotate.timer[0m - Daily rotation of log files.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mman-db.timer[0m - Daily man-db regeneration.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mmotd-news.timer[0m - Message of the Day.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msysstat-collect.timer[0m - Ru…y accounting tool every 10 minutes.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msysstat-summary.timer[0m - Ge… of yesterday's process accounting.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-tmpfiles-clean.tim…[0my Cleanup of Temporary Directories.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mupdate-notifier-download.t…[0mhat failed at package install time.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mupdate-notifier-motd.timer[0m… a new version of Ubuntu available.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mpaths.target[0m - Path Units.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mtimers.target[0m - Timer Units.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39mcloud-init-hotplugd.s…t[0m - cloud-init hotplug hook socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39mdbus.socket[0m - D-Bus System Message Bus Socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39miscsid.socket[0m - Open-iSCSI iscsid Socket.
+   [mq_vm]          Starting [0;1;39mlxd-installer.socket[0m - He…er to install lxd snap on demand...
+   [mq_vm]          Starting [0;1;39msnapd.socket[0m - Socket activation for snappy daemon...
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39mssh.socket[0m - OpenBSD Secure Shell server socket.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39muuidd.socket[0m - UUID daemon activation socket.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mremote-fs-pre.targe…[0mreparation for Remote File Systems.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mremote-fs.target[0m - Remote File Systems.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mblk-availability.service[0m - Availability of block devices.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39mlxd-installer.socket[0m …lper to install lxd snap on demand.
+   [mq_vm] [[0;32m  OK  [0m] Listening on [0;1;39msnapd.socket[0m - Socket activation for snappy daemon.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39msockets.target[0m - Socket Units.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mbasic.target[0m - Basic System.
+   [mq_vm]          Starting [0;1;39mapport.service[0m - automatic crash report generation...
+   [mq_vm]          Starting [0;1;39mcloud-config.service[0m - Cloud-init: Config Stage...
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mcron.service[0m - Regular background program processing daemon.
+   [mq_vm]          Starting [0;1;39mdbus.service[0m - D-Bus System Message Bus...
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mdmesg.service[0m - Save initial kernel messages after boot.
+   [mq_vm]          Starting [0;1;39me2scrub_reap.service[0m - Re…ne ext4 Metadata Check Snapshots...
+   [mq_vm]          Starting [0;1;39mpolkit.service[0m - Authorization Manager...
+   [mq_vm]          Starting [0;1;39mpollinate.service[0m - Polli…e pseudo random number generator...
+   [mq_vm]          Starting [0;1;39mrsyslog.service[0m - System Logging Service...
+   [mq_vm] [[0;32m  OK  [0m] Reache
+   [mq_vm] d target [0;1;39mgetty-pre.target[0m - Preparation for Logins.
+   [mq_vm]          Starting [0;1;39msnapd.seeded.service[0m - Wait until snapd is fully seeded...
+   [mq_vm]          Starting [0;1;39msnapd.service[0m - Snap Daemon...
+   [mq_vm]          Starting [0;1;39msysstat.service[0m - Resets System Activity Logs...
+   [mq_vm]          Starting [0;1;39msystemd-logind.service[0m - User Login Management...
+   [mq_vm]          Starting [0;1;
+   [mq_vm] 39msystemd-user-sessions
+   [mq_vm] .service[0
+   [mq_vm] m - Permit User Sessions...
+   [mq_vm]          Sta
+   [mq_vm] rting [0;1;39m
+   [mq_vm] udisks2.service[0m - Disk Manager.
+   [mq_vm] ..
+   [mq_vm] [[0;
+   [mq_vm] 32m
+   [mq_vm]   OK 
+   [mq_vm]  [0
+   [mq_vm] m] Started 
+   [mq_vm] [0;
+   [mq_vm] 1;39m
+   [mq_vm] dbu
+   [mq_vm] s.
+   [mq_vm] service[0m - D-Bus System Message Bus.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39me2scrub_reap.service[0m - Re…line ext4 Metadata Check Snapshots.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msystemd-user-sessions.service[0m - Permit User Sessions.
+   [mq_vm]          Starting [0;1;39mplymouth-quit-wait.servic…[0md until boot process finishes up...
+   [mq_vm]          Starting [0;1;39mplymouth-quit.service[0m - Terminate Plymouth Boot Screen...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mplymouth-quit-wait.servic…[0mold until boot process finishes up.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msysstat.service[0m - Resets System Activity Logs.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mserial-getty@ttyS0.service[0m… installer for Ubuntu Server ttyS0.
+   [mq_vm] [[0;32m  OK  [0m] Reached target [0;1;39mgetty.target[0m - Login Prompts.
+   [mq_vm]          Starting [0;1;39msetvtrgb.service[0m - Set console scheme...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mplymouth-quit.service[0m - Terminate Plymouth Boot Screen.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msetvtrgb.service[0m - Set console scheme.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-logind.service[0m - User Login Management.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39munattended-upgrades.service[0m - Unattended Upgrades Shutdown.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mpolkit.service[0m - Authorization Manager.
+   [mq_vm]          Starting [0;1;39mModemManager.service[0m - Modem Manager...
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mudisks2.service[0m - Disk Manager.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mrsyslog.service[0m - System Logging Service.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39mModemManager.service[0m - Modem Manager.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mpollinate.service[0m - Polli…the pseudo random number generator.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mcloud-config.service[0m - Cloud-init: Config Stage.
+   [mq_vm]          Starting [0;1;39msystemd-hostnamed.service[0m - Hostname Service...
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msystemd-hostnamed.service[0m - Hostname Service.
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39mapport.service[0m - automatic crash report generation.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msnapd.service[0m - Snap Daemon.
+   [mq_vm]          Starting [0;1;39msnapd.hold.service[0m - Holds Snappy daemon refresh...
+   [mq_vm] [[0;32m  OK  [0m] Finished [0;1;39msnapd.hold.service[0m - Holds Snappy daemon refresh.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msnap.subiquity.hook.instal…-517c-41c3-8b66-14e07a1c8631.scope[0m.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msnap.subiquity.subiquity-s…[0mcation subiquity.subiquity-service.
+   [mq_vm] [[0;32m  OK  [0m] Started [0;1;39msnap.subiquity.subiquity-s…[0mication subiquity.subiquity-server.
+   [mq_vm]          Starting [0;1;39msystemd-timedated.service[0m - Time & Date Service...
+   [mq_vm] Ubuntu 24.04.3 LTS ubuntu-server ttyS0
+   [mq_vm] connecting...  -
+   [mq_vm] \
+   [mq_vm] | 
+   [mq_vm] waiting for cloud-init...  -
+   [mq_vm] \
+   [mq_vm] |
+   [mq_vm]  
+   [mq_vm] 7[?47h[?1002l[?1000l)0[?25l[0;39;49m[H[1;1H[0;37;40m================================================================================[2;1H[0;30;47m                                                                      [0;30;47m[ Help ][0;30;47m[K[3;1H[0;37;40m================================================================================[4;1H[0;37;40m[K[5;1H[0;37;40m[K[6;1H[0;37;40m[K[7;1H[0;37;40m[K[8;1H[0;37;40m[K[9;1H[0;37;40m[K[10;1H[0;37;40m[K[11;1H[0;37;40m[K[12;1H[0;37;40m[K[13;1H[0;37;40m[K[14;1H[0;37;40m[K[15;1H[0;37;40m[K[16;1H[0;37;40m[K[17;1H[0;37;40m[K[18;1H[0;37;40m[K[19;1H[0;37;40m[K[20;1H[0;37;40m[K[21;1H[0;37;40m[K[22;1H[0;37;40m[K[23;1H[0;37;40m[K[24;1H[0;37;40m[K
+   [mq_vm] [?25l[0;39;49m[H[1;1H[2;1H[0;30;47m  Installing system                                                   [0;30;47m[ Help ][0;30;47m[K[4;1H[0;37;40m  lqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqk[K[5;1H[0;37;40m  x                                                                          x[K[6;1H[0;37;40m  x                                                                          x[K[7;1H[0;37;40m  x                                                                          x[K[8;1H[0;37;40m  x                                                                          x[K[9;1H[0;37;40m  x                                                                          x[K[10;1H[0;37;40m  x                                                                          x[K[11;1H[0;37;40m  x                                                                          x[K[12;1H[0;37;40m  x                                                                          x[K[13;1H[0;37;40m  x                                                                          x[K[14;1H[0;37;40m  x                                                                          x[K[15;1H[0;37;40m  x                                                                          x[K[16;1H[0;37;40m  x                                                                          x[K[17;1H[0;37;40m  x                                                                          x[K[18;1H[0;37;40m  x                                                                          x[K[19;1H[0;37;40m  x                                                                          x[K[20;1H[0;37;40m  x                                                                          x[K[21;1H[0;37;40m  x                                                                          x[K[22;1H[0;37;40m  mqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj[K[?25l[0;39;49m[H[1;1H[5;1H[0;37;40m  xsubiquity/load_cloud_config/extract_autoinstall:                          x[K[6;1H[0;37;40m  xsubiquity/Early/apply_autoinstall_config:                                 x[K[7;1H[0;37;40m  xsubiquity/Reporting/apply_autoinstall_config:                             x[K[8;1H[0;37;40m  xsubiquity/Error/apply_autoinstall_config:                                 x[K[9;1H[0;37;40m  xsubiquity/Userdata/apply_autoinstall_config:                              x[K[10;1H[0;37;40m  xsubiquity/Package/apply_autoinstall_config:                               x[K[11;1H[0;37;40m  xsubiquity/Debconf/apply_autoinstall_config:                               x[K[12;1H[0;37;40m  xsubiquity/Kernel/apply_autoinstall_config:                                x[K[13;1H[0;37;40m  xsubiquity/Zdev/apply_autoinstall_config:                                  x[K[14;1H[0;37;40m  xsubiquity/Ad/apply_autoinstall_config:                                    x[K[15;1H[0;37;40m  xsubiquity/Late/apply_autoinstall_config:                                  x[K
+   [mq_vm] [?25l[0;39;49m[H[1;1H[2;1H[0;30;47m  Serial                                                              [0;30;47m[ Help ][0;30;47m[K[4;1H[0;37;40m                                                                              [K[5;1H[0;37;40m  As the installer is running on a serial console, it has started in basic    [K[6;1H[0;37;40m  mode, using only the ASCII character set and black and white colours.       [K[7;1H[0;37;40m                                                                              [K[8;1H[0;37;40m  If you are connecting from a terminal emulator such as gnome-terminal that  [K[9;1H[0;37;40m  supports unicode and rich colours you can switch to "rich mode" which uses  [K[10;1H[0;37;40m  unicode, colours and supports many languages.                               [K[11;1H[0;37;40m                                                                              [K[12;1H[0;37;40m  You can also connect to the installer over the network via SSH, which will  [K[13;1H[0;37;40m  allow use of rich mode.                                                     [K[14;1H[0;37;40m                                                                              [K[15;1H[0;37;40m                                                                              [K[16;1H[0;37;40m                                                                              [K[17;1H[0;37;40m                                                                              [K[18;1H[0;37;40m                                                                              [K[19;1H[0;37;40m                                                                              [K[20;1H[0;37;40m                                                                              [K[21;1H[0;37;40m                          [0;30;47m[ Continue in rich mode  > ][0;37;40m                        [K[22;1H[0;37;40m                          [0;37;40m[ Continue in basic mode > ][0;37;40m                        [K[23;1H[0;37;40m                          [0;37;40m[ View SSH instructions    ][0;37;40m                        [K[24;1H[0;37;40m                                                                              [K[21;29H[?25h
+
+   [AUTOPILOT] ═══════════════════════════════════════════════
+   [AUTOPILOT] Starting pattern-matching installer autopilot
+   [AUTOPILOT] Strategy: Wait for text → Execute action
+   [AUTOPILOT] Total steps: 17
+   [AUTOPILOT] Username: ubuntu
+   [AUTOPILOT] ═══════════════════════════════════════════════
+
+   [AUTOPILOT] Flushing initial buffer...
+   [1/17] Continue in rich mode
+   [1/17] Waiting for: "rich mode"...
+   [1/17] ✅ Found "rich mode"!
+   [1/17]   │ [?25l====================================================================
+   [1/17] ▶ Executing: enter
+
+   [2/17] Select English
+   [2/17] Waiting for: "English"...
+   [2/17] ✅ Found "English"!
+   [2/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [2/17] ▶ Executing: enter
+
+   [3/17] Continue without updating
+   [3/17] Waiting for: "without updating"...
+   [3/17] ✅ Found "without updating"!
+   [3/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [3/17] ▶ Executing: enter
+
+   [4/17] Done - keyboard layout
+   [4/17] Waiting for: "Layout"...
+   [4/17] ✅ Found "Layout"!
+   [4/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [4/17] ▶ Executing: enter
+
+   [5/17] Done - installation type
+   [5/17] Waiting for: "type of install"...
+   [5/17] ✅ Found "type of install"!
+   [5/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [5/17] ▶ Executing: enter
+
+   [6/17] Done - network config
+   [6/17] Waiting for: "Network"...
+   [6/17] ✅ Found "Network"!
+   [6/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [6/17] ▶ Executing: enter
+
+   [7/17] Done - proxy config
+   [7/17] Waiting for: "proxy"...
+   [7/17] ✅ Found "proxy"!
+   [7/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [7/17] ▶ Executing: enter
+
+   [8/17] Done - mirror (wait 30s for test)
+   [8/17] Waiting for: "mirror"...
+   [8/17] ✅ Found "mirror"!
+   [8/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [8/17] ▶ Executing: wait30_enter
+      ⏳ Waiting 30s for mirror test to complete...
+
+   [9/17] Guided storage - Tab to Done, Enter
+   [9/17] Waiting for: "storage"...
+   [9/17] ✅ Found "storage"!
+   [9/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [9/17] ▶ Executing: tab_to_done
+      🔄 Tab-to-Done: pressing tab until Done is focused (max 15)...
+      🔄 Tab #1: still navigating...
+      🔄 Tab #2: still navigating...
+      🔄 Tab #3: still navigating...
+      🔄 Tab #5: Done is FOCUSED! Pressing Enter.
+
+   [10/17] Done - storage summary
+   [10/17] Waiting for: "FILE SYSTEM"...
+   [10/17] ✅ Found "FILE SYSTEM"!
+   [10/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [10/17] ▶ Executing: tab_to_done
+      🔄 Tab-to-Done: pressing tab until Done is focused (max 15)...
+      🔄 Tab #1: 'Done' visible but not yet focused...
+      🔄 Tab #2: still navigating...
+      🔄 Tab #3: still navigating...
+      🔄 Tab #6: still navigating...
+      🔄 Tab #9: still navigating...
+      🔄 Tab #12: still navigating...
+      🔄 Tab #14: Done is FOCUSED! Pressing Enter.
+
+   [11/17] Confirm destructive action - Tab to Continue, Enter
+   [11/17] Waiting for: "Continue"...
+   [11/17] ✅ Found "Continue"!
+   [11/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [11/17] ▶ Executing: tab_enter
+
+   [12/17] Fill username/password
+   [12/17] Waiting for: "Your name"...
+   [12/17] ✅ Found "Your name"!
+   [12/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [12/17] ▶ Executing: fill_user
+      Filling profile: name=ubuntu, server=ubuntu, user=ubuntu
+
+   [13/17] Skip Ubuntu Pro
+   [13/17] Waiting for: "Ubuntu Pro"...
+   [13/17] ✅ Found "Ubuntu Pro"!
+   [13/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [13/17] ▶ Executing: enter
+
+   [14/17] Install OpenSSH
+   [14/17] Waiting for: "SSH"...
+   [14/17] ✅ Found "SSH"!
+   [14/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [14/17] ▶ Executing: space_tab_tab_enter
+
+   [15/17] Done - snaps
+   [15/17] Waiting for: "Featured"...
+   [15/17] ✅ Found "Featured"!
+   [15/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [15/17] ▶ Executing: tab_to_done
+      🔄 Tab-to-Done: pressing tab until Done is focused (max 15)...
+      🔄 Tab #1: Done is FOCUSED! Pressing Enter.
+
+   [16/17] Wait for install
+   [16/17] Waiting for: "Install complete"...
+   [16/17] ⏳ Switching to install polling mode...
+   [INSTALL] Waiting up to 60 min for installation...
+   [INSTALL] [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [INSTALL] ✅ 'Reboot Now' detected!
+   [16/17] ✅ Installation complete!
+   [16/17] ⏳ Waiting 60s for installer to finish cleanup...
+   [17/17] Reboot (Enter + wait 2min + Enter)
+   [17/17] Waiting for: "Reboot Now"...
+   [17/17] ✅ Found "Reboot Now"!
+   [17/17]   │ [?25l▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+   [17/17] ▶ Executing: reboot_sequence
+      ▶ Pressing Enter on 'Reboot Now'...
+      ▶ Pressing Enter again (dismiss intermediate dialog)...
+      ▶ Pressing Enter once more (ensure reboot starts)...
+      ⏳ Waiting 90s for VM to unmount + reboot...
+      ▶ Pressing Enter to dismiss CDROM prompt (backup, if present)...
+      ✅ Reboot sequence complete!
+
+
+   [AUTOPILOT] ═══════════════════════════════════════════════
+   [AUTOPILOT] ✅ All steps completed!
+   [AUTOPILOT] ═══════════════════════════════════════════════
+   [mq_vm] ✅ Autopilot completed!
+   [mq_vm] 🔌 Reconnecting to VM console via virsh console (same SSH)...
+   [mq_vm] ⚠ Console reconnect failed: Socket is closed
+   [mq_vm] --- reading post-install output (mq_vm.py finalization) ---
+   [mq_vm] --- reading remaining output ---
+   [mq_vm] error: stream had I/O failure
+   [mq_vm] WARNING  Console command returned failure.
+   [mq_vm] Domain is still running. Installation may be in progress.
+   [mq_vm] You can reconnect to the console to complete the installation process.
+   [mq_vm] >>>>> Install Done <<<<<
+   [mq_vm] >>>>> Shutting down VM <<<<<
+   [mq_vm] Domain 'vm2' destroyed
+   [mq_vm] >>>>> Starting VM <<<<<
+   [mq_vm] INFO 2026-08-05 09:02:43 SUCCESS: qmonitor-proxy.service stopped successfully
+   [mq_vm] Domain 'vm2' started
+   [mq_vm] >>>>> Fetching IP Address <<<<<
+   [mq_vm]  Name       MAC address          Protocol     Address
+   [mq_vm] -------------------------------------------------------------------------------
+   [mq_vm]  vnet1      52:54:00:07:4a:07    ipv4         192.168.122.96/24
+   [mq_vm] >>>>> Waiting for VM boot up ... <<<<<
+   [mq_vm] Trial 0
+   [mq_vm] CompletedProcess(args='ping -c 1 -W 2 192.168.122.96', returncode=1, stdout='PING 192.168.122.96 (192.168.122.96) 56(84) bytes of data.\n\n--- 192.168.122.96 ping statistics ---\n1 packets transmitted, 0 received, 100% packet loss, time 0ms\n\n', stderr='')
+   [mq_vm] Trial 1
+   [mq_vm] CompletedProcess(args='ping -c 1 -W 2 192.168.122.96', returncode=1, stdout='PING 192.168.122.96 (192.168.122.96) 56(84) bytes of data.\nFrom 192.168.122.1 icmp_seq=1 Destination Host Unreachable\n\n--- 192.168.122.96 ping statistics ---\n1 packets transmitted, 0 received, +1 errors, 100% packet loss, time 0ms\n\n', stderr='')
+   [mq_vm] Trial 2
+   [mq_vm] CompletedProcess(args='ping -c 1 -W 2 192.168.122.96', returncode=1, stdout='PING 192.168.122.96 (192.168.122.96) 56(84) bytes of data.\n\n--- 192.168.122.96 ping statistics ---\n1 packets transmitted, 0 received, 100% packet loss, time 0ms\n\n', stderr='')
+   [mq_vm] Trial 3
+   [mq_vm] CompletedProcess(args='ping -c 1 -W 2 192.168.122.96', returncode=0, stdout='PING 192.168.122.96 (192.168.122.96) 56(84) bytes of data.\n64 bytes from 192.168.122.96: icmp_seq=1 ttl=64 time=0.276 ms\n\n--- 192.168.122.96 ping statistics ---\n1 packets transmitted, 1 received, 0% packet loss, time 0ms\nrtt min/avg/max/mdev = 0.276/0.276/0.276/0.000 ms\n', stderr='')
+   [mq_vm] >>>>> VM Reachable <<<<<
+   [mq_vm] >>>>> Installation Successful <<<<<
+   [vm_post_setup] Will SSH to VM 192.168.122.96 through KVM host...
+   [vm_post_setup] Waiting for VM SSH to be ready at 192.168.122.96...
+   [vm_post_setup] VM SSH not ready yet (attempt 1/18, exit=255) — waiting 10s...
+   [vm_post_setup] VM SSH not ready yet (attempt 2/18, exit=255) — waiting 10s...
+   [vm_post_setup] ✅ VM SSH is ready (attempt 3)
+   [vm_post_setup] Creating /etc/netplan/01-netcfg.yaml (IP: 192.168.122.96/21)...
+   [vm_post_setup] ✅ Netplan config created!
+   [vm_post_setup] Setting permissions (chmod 600, chown root:root)...
+   [vm_post_setup] Running netplan generate...
+   [vm_post_setup] Running netplan apply...
+   [vm_post_setup] ✅ Netplan applied!
+   [vm_post_setup] Running: sudo apt full-upgrade -y
+   [vm_post_setup] This may take several minutes...
+   [vm_post_setup] ✅ apt full-upgrade completed!
+
+=== Autopilot Run Ended: 2026-08-05T15:11:54.448304 ===

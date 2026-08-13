@@ -1,0 +1,60 @@
+2026-07-30T12:03:48.408200 | 8ad4eb72 | template_saved | test-tpl
+2026-07-30T12:03:48.427589 | 8ad4eb72 | template_deleted | test-tpl
+2026-07-30T12:07:21.349113 | 8b0303e4 | vm_build_start | vm=test-vm
+2026-07-30T12:07:40.297699 | 8b0303e4 | vm_build_complete | vm=test-vm ip=192.168.122.50
+2026-07-30T12:11:46.150598 | d8460f43 | vm_build_start | vm=gb39_ubuntu_06
+2026-07-30T12:19:34.042387 | f0dda065 | vm_build_start | vm=test
+2026-07-30T12:19:51.174815 | f0dda065 | vm_build_complete | vm=test ip=192.168.122.50
+2026-07-30T12:25:33.694320 | 04db08b5 | vm_build_start | vm=gb39_ubuntu_06
+2026-07-30T12:38:32.075248 | 04db08b5 | vm_build_failed | vm=gb39_ubuntu_06 tool=tool_run_mq_vm_install err=Failed to upload mq_vm.py: SSH session not active
+2026-07-30T15:03:38.242182 | 4bc87606 | vm_build_start | vm=gb_292_18_ubuntu_vm1
+2026-07-30T15:05:49.261826 | 4bc87606 | vm_build_start | vm=gb_292_blr_18_ubuntu_vm1
+2026-07-30T15:23:33.988837 | 4bc87606 | vm_build_failed | vm=gb_292_blr_18_ubuntu_vm1 tool=tool_list_pci_devices err=No free IOMMU groups available with 4+ Qualcomm devices. Blocked groups: [33, 34, 74, 75, 113, 114, 148, 149]
+2026-07-30T15:23:37.401715 | 4bc87606 | auto_rollback | vm=gb_292_blr_18_ubuntu_vm1
+2026-07-30T15:29:42.269998 | 4bc87606 | vm_build_start | vm=gb-292-blr-18_vm_01
+2026-07-30T15:33:38.388015 | 9dbbd43b | vm_build_start | vm=gb39_ubuntu_08
+2026-07-30T15:50:44.706915 | 9dbbd43b | vm_build_failed | vm=gb39_ubuntu_08 tool=tool_list_pci_devices err=No free IOMMU groups available with 4+ Qualcomm devices. Blocked groups: [64, 65, 66, 67]
+2026-07-30T15:50:48.867580 | 9dbbd43b | auto_rollback | vm=gb39_ubuntu_08
+2026-07-30T19:39:08.490637 | e39d57ae | vm_build_start | vm=test-vm
+2026-07-30T19:39:29.566956 | e39d57ae | vm_build_complete | vm=test-vm ip=192.168.122.50
+2026-07-30T19:45:56.736509 | 9d879c04 | vm_build_start | vm=test
+2026-07-30T19:46:16.988627 | 9d879c04 | vm_build_complete | vm=test ip=192.168.122.50
+2026-07-30T19:47:37.762415 | 2f1119f0 | vm_build_start | vm=test
+2026-07-30T19:48:00.682060 | 2f1119f0 | vm_build_complete | vm=test ip=192.168.122.50
+2026-07-30T20:00:14.891904 | e32fe320 | vm_build_start | vm=gb-292-blr-18_vm_01
+2026-07-30T21:21:20.446131 | e32fe320 | vm_build_failed | vm=gb-292-blr-18_vm_01 tool=tool_start_vm err='NoneType' object has no attribute 'open_session'
+2026-07-30T21:23:03.242376 | d75f10c0 | vm_build_start | vm=gb17_ubuntu_vm01
+2026-07-30T21:35:13.516355 | 749ee47b | vm_build_start | vm=test
+2026-07-30T21:35:33.616762 | 749ee47b | vm_build_complete | vm=test ip=192.168.122.50
+2026-07-30T21:36:50.134088 | cce35a22 | vm_build_start | vm=gb17_ubuntu_vm01
+2026-07-30T21:56:24.714226 | cce35a22 | vm_build_complete | vm=gb17_ubuntu_vm01 ip=192.168.122.127
+2026-07-30T22:08:15.714295 | cce35a22 | reset | 
+2026-07-30T22:08:56.780508 | eb2d8f80 | vm_build_start | vm=gb17_ubuntu_vm02
+2026-07-30T22:29:52.457777 | eb2d8f80 | vm_build_complete | vm=gb17_ubuntu_vm02 ip=192.168.122.132
+2026-07-31T12:31:35.831336 | de4874f6 | vm_build_start | vm=gb39_ubuntu_04
+2026-07-31T14:27:13.506899 | 2980b3be | vm_build_start | vm=SCSAC
+2026-07-31T14:27:33.134908 | 2980b3be | vm_build_complete | vm=SCSAC ip=192.168.122.50
+2026-07-31T20:22:31.600075 | 4b1aa88b | vm_build_start | vm=gb39_uuntu_01
+2026-08-03T15:12:01.250818 | d50df9b6 | vm_build_start | vm=fSF
+2026-08-03T15:12:20.114087 | d50df9b6 | vm_build_complete | vm=fSF ip=192.168.122.50
+2026-08-03T15:16:42.108008 | b314184c | vm_build_start | vm=test
+2026-08-03T15:17:04.044255 | b314184c | vm_build_complete | vm=test ip=192.168.122.50 mode=agent
+2026-08-03T15:24:37.226803 | d742d897 | vm_build_start | vm=test
+2026-08-03T15:24:59.462315 | d742d897 | vm_build_complete | vm=test ip=192.168.122.50 mode=agent
+2026-08-03T15:26:07.514441 | 9c32dc7f | vm_build_start | vm=agent-test
+2026-08-03T15:26:31.252503 | 9c32dc7f | vm_build_complete | vm=agent-test ip=192.168.122.50 mode=agent
+2026-08-05T10:41:25.076887 | fc9b1e89 | vm_build_start | vm=gb-blr-39 agent=True
+2026-08-05T10:41:37.119853 | fc9b1e89 | vm_build_failed | vm=gb-blr-39 mode=agent reason=** No SSH connection to the KVM host.** The tool requires an active SSH connection via `/api/connect` before any provisioning steps can be executed.
+
+Here's what you need to do to resolve this:
+
+1. **
+2026-08-05T11:59:10.740369 | 75d2298a | vm_build_start | vm=vm1 agent=True
+2026-08-05T12:24:31.482801 | 75d2298a | vm_build_failed | vm=vm1 mode=agent reason=The post-setup has failed twice. Exit code 255 typically indicates an SSH connectivity issue rather than a permanent system failure. However, the critical provisioning steps (VM installation, PCI devi
+2026-08-05T14:12:42.682782 | 7c616c53 | vm_build_start | vm=vm2 agent=True
+2026-08-05T14:37:42.530788 | 7c616c53 | vm_build_complete | vm=vm2 ip=192.168.122.96 mode=agent
+2026-08-05T15:27:06.216242 | a8800716 | reset | 
+2026-08-05T15:58:30.010907 | 21e2c904 | vm_build_start | vm=vm1 agent=True
+2026-08-05T16:24:07.405956 | 21e2c904 | vm_build_failed | vm=vm1 mode=agent reason=The SSH session is not active on the second attempt as well. This indicates a persistent connectivity issue to the KVM host that I cannot recover from automatically.
+
+** Unable to install VM 'vm1' — S

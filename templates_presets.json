@@ -1,0 +1,42 @@
+[
+  {
+    "name": "AIC-4-card Standard",
+    "description": "Standard Ubuntu VM with 4 Qualcomm AIC cards passed through",
+    "config": {
+      "memory_gb": 32,
+      "num_cpu": 4,
+      "disk_size": "100G",
+      "vm_type": "normal",
+      "debug": "enable",
+      "vm_username": "ubuntu",
+      "aic_cards": 4
+    }
+  },
+  {
+    "name": "AIC-4-card Large (64GB)",
+    "description": "Larger memory config for ML workloads",
+    "config": {
+      "memory_gb": 64,
+      "num_cpu": 8,
+      "disk_size": "200G",
+      "vm_type": "normal",
+      "debug": "enable",
+      "vm_username": "ubuntu",
+      "aic_cards": 4
+    }
+  },
+  {
+    "name": "P2P VM",
+    "description": "P2P-enabled VM with ACS override",
+    "config": {
+      "memory_gb": 32,
+      "num_cpu": 4,
+      "disk_size": "100G",
+      "vm_type": "p2p",
+      "acs_state": "disable",
+      "debug": "enable",
+      "vm_username": "ubuntu",
+      "aic_cards": 4
+    }
+  }
+]

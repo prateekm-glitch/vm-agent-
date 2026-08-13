@@ -1,0 +1,242 @@
+================================================================================
+VM AGENT — ROADMAP & FUTURE PLANS
+================================================================================
+Created: 2026-07-31
+Last Updated: 2026-08-05
+
+================================================================================
+COMPLETED (for reference)
+================================================================================
+
+Phase 1 — Scripted Automation ✅ DONE (2026-07-31)
+  - Hard-coded 8-tool pipeline
+  - Multi-user session support, SSE streaming, progress ring
+  - VM template/preset library, health dashboard, audit log
+  - IOMMU-aware PCI selection (1/4/8 cards per group)
+  - Tested on: gb-292-blr-17, gb-292-blr-18, gb-blr-70, gb39-blr
+
+Phase 2 — Full Agentic Loop ✅ DONE (2026-08-05)
+  - Looping agentic loop (Gen 2 architecture)
+  - Claude decides each tool step dynamically
+  - tool_schemas.py — tool descriptions for Claude
+  - ask_with_tools() in llm_client.py
+  - run_agentic_loop() in orchestrator.py
+  - Agent Mode UI toggle (🤖 AGENT badge)
+  - SSH auto-reconnect before agent loop
+  - VM post-setup SSH retry loop (18×10s = 3 min)
+  - agent_decisions.log with formatted table + session summary
+  - Tested on real servers: vm1, vm2 built successfully
+
+================================================================================
+CURRENT STATE (as of 2026-08-05)
+================================================================================
+
+Servers working:
+- gb-292-blr-17: 20 AIC cards, 1 card/IOMMU group → 5 VMs max
+- gb-292-blr-18: 64 AIC cards, 8 cards/IOMMU group → 8 VMs max
+- gb-blr-70:     12 AIC cards, 4 cards/IOMMU group → 3 VMs max
+- gb39-blr:       8 AIC cards, 4 cards/IOMMU group → 2 VMs max
+
+Two modes available:
+- Classic Mode (AGENT_MODE=False): hardcoded 8-tool pipeline
+- Agent Mode  (AGENT_MODE=True):  Claude decides each step
+
+================================================================================
+PHASE 3: CHAINING PATTERN (Next)
+================================================================================
+
+Goal: Decompose VM provisioning into specialized agents that chain together.
+      Each agent is an expert in one domain and passes context to the next.
+      Matches QForge/ModelForge architecture exactly.
+
+ARCHITECTURE (Gen 3 — Chaining):
+
+  User → Planner Agent
+      ↓
+  Hardware Inspector Agent
+  (checks server health, AIC cards, IOMMU groups, available resources)
+      ↓
+  VM Installer Agent
+  (runs mq_vm.py, navigates Ubuntu installer, handles install errors)
+      ↓
+  PCI Setup Agent
+  (selects IOMMU groups, generates XMLs, attaches cards, handles P2P/ACS)
+      ↓
+  Post-Setup Agent
+  (configures network, runs apt upgrade, verifies VM is reachable)
+      ↓
+  Result Reporter Agent
+  (generates summary, logs, sends notifications)
+
+  Each agent:
+  - Has specialized knowledge (agent instructions in agents/*.md files)
+  - Receives context from previous agent
+  - Passes enriched context to next agent
+  - Can loop back if it encounters an error
+
+WHY PHASE 3:
+  - More reliable — each agent is an expert in one domain
+  - Parallel execution possible (e.g., Hardware Inspector + ISO download)
+  - Easier to debug — each agent has clear responsibility
+  - Matches QForge/ModelForge architecture exactly
+
+FILES TO CREATE:
+  agents/orchestrator.md       ← Planner agent instructions
+  agents/hardware-inspector.md ← Hardware check specialist
+  agents/vm-installer.md       ← VM installation specialist
+  agents/pci-setup.md          ← PCI/AIC card specialist
+  agents/post-setup.md         ← Network + upgrade specialist
+
+TIMELINE:
+  Week 1: Design specialized agent instructions (agents/*.md)
+  Week 2: Implement chaining between agents
+  Week 3: Test + optimize
+
+================================================================================
+PENDING ITEMS (not blocking, implement when ready)
+================================================================================
+
+1. [PENDING] P2P Fix: Create tools/tool_setup_p2p.py
+   - Disable ACS using: sudo qaic-util -a
+   - Verify devices are under the same PCIe switch
+   - Add to P2P_PLAN in orchestrator.py
+   - See DOMAIN KNOWLEDGE section for details
+
+2. [PENDING] QGenie Skill Registration
+   - Register VM Agent as a skill in QGenie marketplace
+   - Contact Rajeev Pal's team (QGenie 3.0 launch)
+   - Publish tools as QGenie skills so other teams can use them
+   - Attend QGenie Summit (August 13, 2026)
+
+3. [PENDING] Fix netplan subnet mask
+   - When static IP is configured in 01-netcfg.yaml, subnet /21 is hardcoded
+   - Need to clarify: where does the static IP 10.131.x.x come from?
+   - Currently uses VM's DHCP IP (192.168.122.x) as the static IP
+
+4. [PENDING] qmonitor-proxy auto-start on boot for gb-292-blr-18
+   - Currently needs manual restart after reboot
+   - Add to systemd service
+
+5. [PENDING] P2P: Verify qaic-util availability on all servers
+   - Need to check: gb-292-blr-17, gb-292-blr-18, gb-blr-70, gb39-blr
+
+================================================================================
+CONSTRAINTS (NON-NEGOTIABLE)
+================================================================================
+
+1. NEVER change user requirements:
+   - VM name, memory, CPU, disk size
+   - VM username/password
+   - OS image path
+   - Server credentials
+
+2. NEVER modify existing tool files (tool_*.py)
+   - Only create new tools if needed
+
+3. NEVER change the UI behavior from the user's perspective
+   - Same form, same flow, same result card
+
+4. All Claude decisions logged to: logs/agent_decisions.log
+
+5. Safety limits:
+   - Max 20 tool calls per session
+   - Max 3 retries per tool
+   - Timeout: 60 min total
+
+6. Rollback always available:
+   - If agentic loop fails, fall back to hardcoded plan
+   - User can toggle "Agent Mode" vs "Classic Mode" in UI
+
+================================================================================
+DOMAIN KNOWLEDGE — P2P (PEER-TO-PEER) FOR AIC CARDS IN VMs
+================================================================================
+Source: Internal email thread "Cloudvbox - Issue with P2P in VM"
+        (Ramakrishna Popuri, Ram Charitra Pandit)
+
+KEY FINDING:
+"Different IOMMU groups do NOT automatically prevent P2P.
+ ACS must be disabled, and the devices should be under the same PCIe switch."
+
+HOW P2P WORKS IN VMs:
+1. P2P IS supported in VMs (previously believed unsupported — incorrect)
+2. Requirements: ACS disabled + same PCIe switch + IOMMU/ATS support
+3. ACS blocking is the most common root cause of P2P failures
+
+HOW TO DISABLE ACS:
+  Option A (preferred): sudo qaic-util -a
+  Option B (manual): setpci commands on each PCIe switch port
+
+REQUIRED CODE CHANGES:
+  1. Create tools/tool_setup_p2p.py (disable ACS, verify PCIe topology)
+  2. Add tool_setup_p2p to P2P_PLAN in orchestrator.py
+  3. Update tool_list_pci_devices.py to group by PCIe switch for P2P mode
+
+================================================================================
+DOMAIN KNOWLEDGE — MODELFORGE (INTERNAL QUALCOMM AI AGENT PLATFORM)
+================================================================================
+Source: Internal email (Robert Morrison, forwarded by Ram Charitra Pandit)
+
+WHAT: AI agents automating end-to-end model onboarding for Cloud AI accelerators.
+RELATIONSHIP: VM Agent (infrastructure) → ModelForge (model layer) — complementary.
+ARCHITECTURE: Kubernetes, 6 agents, 25 skills, shared knowledge base.
+KEY LESSONS: Specialized agents, shared knowledge base, Planner pattern, K8s for scale.
+
+================================================================================
+DOMAIN KNOWLEDGE — QFORGE (QUALCOMM AI TEST AUTOMATION FRAMEWORK)
+================================================================================
+Source: Internal email (Dhivya Sakthivel, forwarded by Ram Charitra Pandit)
+
+WHAT: Agentic test automation for AI100/AI200. Uses OpenCode + MCP + Skills + Orchestrator.
+CRITICAL INSIGHT 1: "Orchestrator: Coordinates all phases — NEVER executes directly"
+CRITICAL INSIGHT 2: MCP is the standard bridge between Claude and tools at Qualcomm.
+BUNDLE: mcp/server.py + skills/ + agents/orchestrator.md
+
+================================================================================
+DOMAIN KNOWLEDGE — QGENIE 3.0 (QUALCOMM AI-NATIVE ENGINEERING PLATFORM)
+================================================================================
+Source: Internal email (Rajeev Pal, forwarded by Ram Charitra Pandit)
+
+WHAT: Company-wide platform for AI-Native Engineering. Overarching ecosystem.
+THE SHIFT: Manual → AI-Augmented → AI-Native Engineering
+AI MATURITY: L1(assist) → L2(collaborate) → L3(lead) → L4(perform) → L5(autonomous)
+  VM Agent is at L3-L4. Phase 3 targets L4-L5.
+VVQ METRICS: Volume + Velocity + Quality — VM Agent improves all three.
+MCP: Confirmed as THE standard at Qualcomm. We MUST use MCP.
+SKILLS: Our tools should be registered in QGenie's Skills Registry.
+EVENTS: QGenie Demo Days Aug 5-6, QGenie Summit Aug 13, 2026.
+
+================================================================================
+AGENT ARCHITECTURE EVOLUTION (Industry Knowledge)
+================================================================================
+
+GENERATION 1: ORCHESTRATOR (Classic Mode — what we have)
+  Pattern: User → Orchestrator → Agent A → Agent B → Agent C → Done
+  Problem: Rigid. Hardcoded plan. No AI decision-making.
+
+GENERATION 2: LOOPING (Phase 2 — DONE ✅)
+  Pattern: User → Claude → Tool → Result → Claude → Tool → Result → ...
+  Key: Claude holds context in conversation history. Plan emerges dynamically.
+
+GENERATION 3: CHAINING (Phase 3 — NEXT)
+  Pattern: Agent A → Agent B → Agent C (specialized, pass context)
+  Key: Each agent is an expert. Context flows between agents. Parallel possible.
+
+WHERE WE ARE:
+  Gen 1: Classic Mode (still available as fallback)
+  Gen 2: Agent Mode (Phase 2, DONE)
+  Gen 3: Phase 3 (next)
+
+================================================================================
+KNOWN ISSUES (not blocking)
+================================================================================
+
+1. gb-292-blr-18: qmonitor-proxy initializes 63/64 devices (1 card stuck)
+   → Not blocking — VMs still work with 63 cards
+
+2. gb-292-blr-18: vfio bindings reset after reboot
+   → Manual fix: sudo /opt/qti-aic/scripts/qaic-monitor-service.sh start
+   → Permanent fix: add to systemd service
+
+================================================================================
+END OF ROADMAP
+================================================================================
