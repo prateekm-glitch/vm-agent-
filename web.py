@@ -21,6 +21,7 @@ import json
 import time
 import re
 import uuid
+import traceback
 import threading
 from datetime import datetime
 
@@ -36,7 +37,8 @@ from config import VMConfig
 import config_validator
 import orchestrator
 from state import AgentState
-from settings import DRY_RUN, AGENT_MODE, KVM_APT_PACKAGES, VM_WORK_DIR
+from settings import DRY_RUN, AGENT_MODE, ANTHROPIC_API_KEY, KVM_APT_PACKAGES, VM_WORK_DIR
+import input_extractor
 
 # Optional API key (set VM_AGENT_API_KEY env var to enable auth on write endpoints)
 API_KEY = os.environ.get("VM_AGENT_API_KEY", "").strip()
@@ -61,8 +63,16 @@ def _audit(sid, action, details=""):
 
 
 def _check_api_key():
-    """Check API key from X-API-Key header. Returns True if OK or auth disabled."""
+    """Check API key from X-API-Key header. Returns True if OK or auth disabled.
+
+    Browser sessions authenticated through the server-credential login are
+    already authorized; the header path only matters for scripted access.
+    """
     if not API_KEY:
+        return True
+    sid = _get_session_id()
+    session = _get_session(sid)
+    if session.get("authed"):
         return True
     provided = request.headers.get("X-API-Key", "").strip()
     return provided == API_KEY
@@ -78,8 +88,18 @@ SESSION_TIMEOUT = 3600  # 1 hour idle timeout
 
 
 def _get_session_id():
-    """Get session ID from cookie, or create new one."""
-    sid = request.cookies.get(SESSION_COOKIE)
+    """Get session ID from the X-Session-Token header, ?session= query param,
+    or cookie; create a new one if none is known.
+
+    The header/query paths keep sessions working even in sandboxed iframes /
+    preview environments where cookies may be dropped or blocked (EventSource
+    cannot set custom headers, so SSE streams pass ?session= instead).
+    """
+    sid = (request.headers.get("X-Session-Token") or "").strip()
+    if not sid:
+        sid = (request.args.get("session") or "").strip()
+    if not sid:
+        sid = request.cookies.get(SESSION_COOKIE) or ""
     if not sid or sid not in _SESSIONS:
         sid = str(uuid.uuid4())
     return sid
@@ -97,6 +117,8 @@ def _get_session(sid):
                 "host_password": None,
                 "host_resources": None,
                 "ssh_client": None,
+                "cancel_requested": False,
+                "authed": False,
                 "last_active": time.time(),
             }
         _SESSIONS[sid]["last_active"] = time.time()
@@ -104,12 +126,18 @@ def _get_session(sid):
 
 
 def _cleanup_stale_sessions():
-    """Remove sessions that have been idle beyond SESSION_TIMEOUT."""
+    """Remove sessions that have been idle beyond SESSION_TIMEOUT.
+
+    Sessions that own a running build are kept alive so a 1-hour build is
+    never orphaned from the browser that started it.
+    """
     now = time.time()
+    with _BUILDS_LOCK:
+        busy = {b["sid"] for b in _BUILDS.values() if b["stage"] == "running"}
     with _SESSIONS_LOCK:
         stale = [
             sid for sid, s in _SESSIONS.items()
-            if now - s.get("last_active", now) > SESSION_TIMEOUT
+            if now - s.get("last_active", now) > SESSION_TIMEOUT and sid not in busy
         ]
         for sid in stale:
             ssh = _SESSIONS[sid].get("ssh_client")
@@ -125,6 +153,267 @@ def _make_response_with_cookie(sid, resp):
     """Attach session cookie to response."""
     resp.set_cookie(SESSION_COOKIE, sid, max_age=SESSION_TIMEOUT, httponly=True, samesite="Lax")
     return resp
+
+
+# ── Concurrent build registry ────────────────────────────────
+# Each VM build runs in its own daemon thread and streams events into its
+# own buffer, so any number of builds can run at once (a 1-hour build no
+# longer blocks starting the next one). Every build is keyed by a unique
+# build_id; the browser subscribes per build and can re-attach after a
+# page refresh.
+#
+# _BUILDS: {build_id: {sid, vm_name, stage, cancel_requested, events,
+#                      log_lines, queue, plan, progress, started_at, done}}
+_BUILDS = {}
+_BUILDS_LOCK = threading.Lock()
+_BUILD_EVENT_CAP = 5000      # SSE events buffered per build
+_BUILD_LINE_CAP = 2000       # log lines kept per build for the log viewer
+_MAX_BUILDS_PER_SESSION = 20  # prune history beyond this
+
+
+def _new_build_id():
+    return uuid.uuid4().hex[:12]
+
+
+def _build_outcome(b):
+    """Terminal outcome for a build (complete/failed/cancelled/error).
+
+    Falls back to scanning the event buffer (SSE streams drain it, so the
+    persistent flag set in _emit() is the source of truth).
+    """
+    if b.get("outcome"):
+        return b["outcome"]
+    for e in reversed(b.get("events", [])):
+        if e.get("type") in ("complete", "failed", "cancelled", "error"):
+            return e["type"]
+    return "running"
+
+
+def _build_snapshot(b):
+    return {
+        "build_id": b["id"],
+        "vm_name": b["vm_name"],
+        "host_ip": b.get("host_ip"),
+        "stage": b["stage"],
+        "outcome": _build_outcome(b),
+        "started_at": b["started_at"],
+        "agent_mode": b.get("agent_mode", False),
+        "progress": b.get("progress", 0),
+        "plan": b.get("plan", []),
+    }
+
+
+def _register_build(b):
+    with _BUILDS_LOCK:
+        _BUILDS[b["id"]] = b
+        # Prune this session's old finished builds so the registry stays small
+        mine = sorted(
+            (x for x in _BUILDS.values() if x["sid"] == b["sid"]),
+            key=lambda x: x["started_at"],
+            reverse=True,
+        )
+        for old in mine[_MAX_BUILDS_PER_SESSION:]:
+            if old.get("done"):
+                del _BUILDS[old["id"]]
+
+
+def _emit(b, obj):
+    """Push an event into a build's buffer (SSE + log lines)."""
+    with b["lock"]:
+        b["events"].append(obj)
+        if len(b["events"]) > _BUILD_EVENT_CAP:
+            del b["events"][: len(b["events"]) - _BUILD_EVENT_CAP]
+        if obj.get("type") == "log" and obj.get("line"):
+            b["log_lines"].append(obj["line"])
+            if len(b["log_lines"]) > _BUILD_LINE_CAP:
+                del b["log_lines"][: len(b["log_lines"]) - _BUILD_LINE_CAP]
+        if obj.get("type") == "progress":
+            b["progress"] = obj.get("percent", b.get("progress", 0))
+        if obj.get("type") in ("complete", "failed", "cancelled", "error"):
+            b["outcome"] = obj["type"]
+
+
+def _new_build(sid, config, agent_mode, plan):
+    import queue as _queue
+    return {
+        "id": _new_build_id(),
+        "sid": sid,
+        "vm_name": config.vm_name,
+        "stage": "running",
+        "cancel_requested": False,
+        "events": [],
+        "log_lines": [],
+        "lock": threading.Lock(),
+        "queue": _queue.Queue(maxsize=1000),  # installer log lines for this build
+        "plan": plan,
+        "progress": 0,
+        "agent_mode": bool(agent_mode),
+        "started_at": time.time(),
+        "done": False,
+        # Host this build belongs to. Snapshot at build start so the build
+        # keeps running on the right server even if the UI session later
+        # disconnects or switches to another host.
+        "host_ip": None,
+        "host_username": None,
+        "host_password": None,
+        # Dedicated SSH connection owned by this build (independent of the
+        # browser session's connection).
+        "ssh_client": None,
+    }
+
+
+# ── Dry-run VM simulation ────────────────────────────────────
+# In DRY_RUN mode the app runs against a simulated KVM host so the whole
+# UI (connect → build → inventory → stop/start/delete) can be exercised
+# safely. The simulated inventory is stateful AND keyed per host: builds
+# add VMs to the host they were started on, stop/start flips their state,
+# delete removes them — so a refresh (or switching servers and coming
+# back) shows reality exactly like virsh does on a real host.
+_FAKE_VMS = {}  # host_ip -> {name -> {"state": "running" | "shut off"}}
+_FAKE_VMS_LOCK = threading.Lock()
+
+
+def _seed_fake_vms(host_ip):
+    with _FAKE_VMS_LOCK:
+        host_vms = _FAKE_VMS.setdefault(host_ip, {})
+        if not host_vms:
+            host_vms["demo-gpu-01"] = {"state": "running"}
+            host_vms["demo-web-02"] = {"state": "shut off"}
+
+
+def _register_built_vm(host_ip, vm_name):
+    """In dry-run mode, make a freshly built VM appear in the inventory
+    of the host it was actually built on."""
+    if DRY_RUN and vm_name and host_ip:
+        with _FAKE_VMS_LOCK:
+            _FAKE_VMS.setdefault(host_ip, {})[vm_name] = {"state": "running"}
+
+
+def _fake_ssh_output(cmd, host_ip):
+    """Script the responses of the simulated host for a given shell command.
+
+    Every virsh listing is scoped to host_ip, mirroring how the real app
+    runs `virsh` on whichever host the session is connected to.
+    """
+    c = cmd
+    m = None
+    if "virsh list --state-running --name" in c:
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.get(host_ip, {})
+            return "\n".join(sorted(n for n, v in host_vms.items() if v["state"] == "running"))
+    if "virsh list --all --name" in c or "virsh list --name" in c:
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.get(host_ip, {})
+            return "\n".join(sorted(host_vms.keys()))
+    m = re.search(r"virsh domstate\s+(\S+)", c)
+    if m:
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.get(host_ip, {})
+            v = host_vms.get(m.group(1))
+            return v["state"] if v else "shut off"
+    m = re.search(r"virsh dominfo\s+(\S+)", c)
+    if m:
+        return "CPU(s): 8\nMax memory: 33554432 KiB\nUsed memory: 33554432 KiB"
+    m = re.search(r"virsh domifaddr\s+(\S+)", c)
+    if m:
+        return "  vnet0    ipv4    192.168.122.50/24"
+    m = re.search(r"virsh domblkinfo\s+(\S+)", c)
+    if m:
+        return "Capacity: 100.0 GiB\nAllocation: 12.0 GiB"
+    m = re.search(r"virsh shutdown\s+(\S+)", c)
+    if m:
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.setdefault(host_ip, {})
+            if m.group(1) in host_vms:
+                host_vms[m.group(1)]["state"] = "shut off"
+        return f"Domain {m.group(1)} is being shutdown"
+    m = re.search(r"virsh destroy\s+(\S+)", c)
+    if m:
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.setdefault(host_ip, {})
+            if m.group(1) in host_vms:
+                host_vms[m.group(1)]["state"] = "shut off"
+        return f"Domain {m.group(1)} destroyed"
+    m = re.search(r"virsh start\s+(\S+)", c)
+    if m:
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.setdefault(host_ip, {})
+            if m.group(1) in host_vms:
+                host_vms[m.group(1)]["state"] = "running"
+        return f"Domain {m.group(1)} started"
+    m = re.search(r"virsh undefine\s+(\S+)", c)
+    if m:
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.get(host_ip, {})
+            host_vms.pop(m.group(1), None)
+        return f"Domain {m.group(1)} has been undefined"
+    if "rm -f" in c and "pci" in c:
+        return ""
+    if "free -b | grep Mem" in c:
+        return "Mem:   137438953472 20000000000 110000000000 1000000000 5000000000 110000000000"
+    if c.strip() == "nproc":
+        return "32"
+    if "df -B1" in c:
+        return "Filesystem     1B-blocks     Used Available Use% Mounted on\n/dev/sda1 2147483648000 700000000000 1400000000000 34% /home"
+    if "systemctl is-active qmonitor-proxy" in c:
+        return "active"
+    return ""
+
+
+class _FakeChannel:
+    """Minimal stand-in for a paramiko channel."""
+
+    def __init__(self, host_ip):
+        self._cmd = ""
+        self._host_ip = host_ip
+
+    def get_pty(self):
+        return None
+
+    def set_combine_stderr(self, v):
+        pass
+
+    def settimeout(self, t):
+        pass
+
+    def exec_command(self, cmd):
+        self._cmd = cmd
+
+    def sendall(self, data):
+        pass
+
+    def makefile(self, mode="rb"):
+        out = _fake_ssh_output(self._cmd, self._host_ip)
+        class _F:
+            def __init__(self, s):
+                self.s = s
+            def read(self):
+                return self.s.encode("utf-8", "replace")
+        return _F(out)
+
+    def recv_exit_status(self):
+        return 0
+
+
+class _FakeSSH:
+    """Simulated paramiko SSH client backed by _fake_ssh_output().
+
+    Carries the host IP it represents so every simulated `virsh` command
+    reads/writes only that host's inventory.
+    """
+
+    def __init__(self, host_ip):
+        self._host_ip = host_ip
+
+    def get_transport(self):
+        host_ip = self._host_ip
+        class _T:
+            def open_session(self):
+                return _FakeChannel(host_ip)
+        return _T()
+
+    def close(self):
+        pass
 
 
 # ── SSH helpers ───────────────────────────────────────────────
@@ -247,20 +536,22 @@ def _format_summary(resources):
 
 # ── Agent Mode Helper ─────────────────────────────────────────
 
-def _run_agent_mode(config, state, sid, session, ssh_client, log_queue, plan):
-    """Generator that runs the agentic loop and yields SSE events.
-    
-    HOW IT WORKS:
-    1. Creates an event queue for the agentic loop to send events
-    2. Runs run_agentic_loop() in a background thread
-    3. While the loop runs, drains both the event queue and log queue
-    4. Yields SSE events to the browser in real-time
-    
-    The stream_callback in run_agentic_loop() puts events into agent_event_queue.
-    This generator reads from that queue and yields them as SSE.
+def _run_agent_mode(b, config, state, session, ssh_client, plan):
+    """Run the agentic loop for build b, pushing events into b's buffer.
+
+    Runs inside the build's daemon thread. The agentic loop itself runs in
+    a nested thread; both inherit the build's log routing context so
+    installer output stays isolated per build.
     """
     import queue as _queue
     import threading as _th
+    import contextvars
+
+    sid = b["sid"]
+    log_queue = b["queue"]
+
+    def _emit_event(obj):
+        _emit(b, obj)
 
     # ── Ensure SSH is alive before starting ──────────────────
     if not DRY_RUN:
@@ -272,26 +563,26 @@ def _run_agent_mode(config, state, sid, session, ssh_client, log_queue, plan):
                 ssh_client.get_transport().send_ignore()
                 print(f"   [AGENT] SSH connection verified alive", flush=True)
             else:
-                # SSH is dead — try to reconnect using stored credentials
+                # SSH is dead — try to reconnect using the build's own creds
                 print(f"   [AGENT] SSH connection dead — reconnecting...", flush=True)
-                host_ip = session.get("host_ip")
-                host_user = session.get("host_username", "ubuntu")
-                host_pass = session.get("host_password", "")
+                host_ip = b.get("host_ip")
+                host_user = b.get("host_username", "ubuntu")
+                host_pass = b.get("host_password", "")
                 if host_ip and host_user and host_pass:
                     try:
                         new_ssh = _make_ssh(host_ip, host_user, host_pass)
-                        session["ssh_client"] = new_ssh
+                        b["ssh_client"] = new_ssh
                         state.set_output("host_ssh", new_ssh)
                         print(f"   [AGENT] SSH reconnected to {host_ip}", flush=True)
-                        yield f"data: {json.dumps({'type': 'log', 'line': f'[AGENT] SSH reconnected to {host_ip}'})}\n\n"
+                        _emit_event({'type': 'log', 'line': f'[AGENT] SSH reconnected to {host_ip}'})
                     except Exception as e:
                         print(f"   [AGENT] SSH reconnect failed: {e}", flush=True)
-                        yield f"data: {json.dumps({'type': 'failed', 'tool': 'agent_loop', 'error': f'SSH connection failed: {e}. Please go back to Step 1 and reconnect.'})}\n\n"
-                        session["stage"] = "done"
+                        _emit_event({'type': 'failed', 'tool': 'agent_loop', 'error': f'SSH connection failed: {e}.'})
+                        b["stage"] = "done"
                         return
                 else:
-                    yield f"data: {json.dumps({'type': 'failed', 'tool': 'agent_loop', 'error': 'No SSH connection. Please go back to Step 1 and reconnect to the host.'})}\n\n"
-                    session["stage"] = "done"
+                    _emit_event({'type': 'failed', 'tool': 'agent_loop', 'error': 'No SSH credentials captured for this build.'})
+                    b["stage"] = "done"
                     return
         except Exception as e:
             print(f"   [AGENT] SSH check error: {e}", flush=True)
@@ -308,25 +599,37 @@ def _run_agent_mode(config, state, sid, session, ssh_client, log_queue, plan):
 
     def run_loop():
         try:
-            orchestrator.run_agentic_loop(config, state, stream_callback=stream_callback)
+            orchestrator.run_agentic_loop(
+                config, state,
+                stream_callback=stream_callback,
+                should_cancel=lambda: bool(b["cancel_requested"]),
+            )
         except Exception as e:
             agent_event_queue.put_nowait(("agent_error", {"error": str(e)}))
         finally:
             agent_done["done"] = True
 
-    # Start the agentic loop in a background thread
-    t = _th.Thread(target=run_loop, daemon=True)
+    # Start the agentic loop in a background thread, inheriting this build's
+    # log routing context (threading.Thread does not propagate contextvars).
+    _ctx = contextvars.copy_context()
+    t = _th.Thread(target=lambda: _ctx.run(run_loop), daemon=True)
     t.start()
 
     iteration_count = 0
 
-    # Stream events while the loop runs
+    # Consume events while the loop runs
     while not agent_done["done"] or not agent_event_queue.empty() or not log_queue.empty():
+        # User cancelled? Stop cleanly
+        if b["cancel_requested"]:
+            _emit_event({'type': 'cancelled', 'msg': 'Build cancelled by user.'})
+            b["stage"] = "done"
+            return
+
         # Drain log queue (installer output)
         while True:
             try:
                 line = log_queue.get_nowait()
-                yield f"data: {json.dumps({'type': 'log', 'line': line})}\n\n"
+                _emit_event({'type': 'log', 'line': line})
             except _queue.Empty:
                 break
 
@@ -336,50 +639,57 @@ def _run_agent_mode(config, state, sid, session, ssh_client, log_queue, plan):
                 event_type, data = agent_event_queue.get_nowait()
 
                 if event_type == "agent_start":
-                    yield f"data: {json.dumps({'type': 'agent_start', 'vm_name': data.get('vm_name'), 'plan': data.get('plan', [])})}\n\n"
+                    _emit_event({'type': 'agent_start', 'vm_name': data.get('vm_name'), 'plan': data.get('plan', [])})
 
                 elif event_type == "agent_tool_start":
                     tool = data.get("tool", "")
                     iteration = data.get("iteration", 0)
                     iteration_count = iteration
                     pct = min(int((iteration / 20) * 100), 95)
-                    yield f"data: {json.dumps({'type': 'running', 'tool': tool, 'step': iteration, 'attempt': 1})}\n\n"
-                    yield f"data: {json.dumps({'type': 'progress', 'percent': pct, 'step': iteration, 'total': len(plan), 'tool': tool})}\n\n"
-                    yield f"data: {json.dumps({'type': 'log', 'line': f'[AGENT] Calling {tool}...'})}\n\n"
+                    _emit_event({'type': 'running', 'tool': tool, 'step': iteration, 'attempt': 1})
+                    _emit_event({'type': 'progress', 'percent': pct, 'step': iteration, 'total': len(plan), 'tool': tool})
+                    _emit_event({'type': 'log', 'line': f'[AGENT] Calling {tool}...'})
 
                 elif event_type == "agent_tool_done":
                     tool = data.get("tool", "")
                     iteration = data.get("iteration", 0)
-                    yield f"data: {json.dumps({'type': 'done', 'tool': tool, 'step': iteration, 'narration': ''})}\n\n"
-                    yield f"data: {json.dumps({'type': 'log', 'line': f'[AGENT] ✅ {tool} succeeded'})}\n\n"
+                    _emit_event({'type': 'done', 'tool': tool, 'step': iteration, 'narration': ''})
+                    _emit_event({'type': 'log', 'line': f'[AGENT] ✅ {tool} succeeded'})
 
                 elif event_type == "agent_tool_failed":
                     tool = data.get("tool", "")
                     error = data.get("error", "")
-                    yield f"data: {json.dumps({'type': 'log', 'line': f'[AGENT] ⚠ {tool} failed: {error}'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'log', 'line': '[AGENT] Claude is deciding how to recover...'})}\n\n"
+                    _emit_event({'type': 'log', 'line': f'[AGENT] ⚠ {tool} failed: {error}'})
+                    _emit_event({'type': 'log', 'line': '[AGENT] Claude is deciding how to recover...'})
 
                 elif event_type == "agent_complete":
                     vm_ip = data.get("vm_ip", "unknown")
                     vm_mac = data.get("vm_mac", "")
                     vm_name = data.get("vm_name", config.vm_name)
                     _audit(sid, "vm_build_complete", f"vm={vm_name} ip={vm_ip} mode=agent")
-                    yield f"data: {json.dumps({'type': 'progress', 'percent': 100, 'step': len(plan), 'total': len(plan), 'tool': 'done'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'complete', 'vm_name': vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username})}\n\n"
-                    session["stage"] = "done"
+                    _register_built_vm(b.get("host_ip"), vm_name)
+                    _emit_event({'type': 'progress', 'percent': 100, 'step': len(plan), 'total': len(plan), 'tool': 'done'})
+                    _emit_event({'type': 'complete', 'vm_name': vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username})
+                    b["stage"] = "done"
                     return
 
                 elif event_type == "agent_failed":
                     reason = data.get("reason", "unknown")
                     _audit(sid, "vm_build_failed", f"vm={config.vm_name} mode=agent reason={reason[:200]}")
-                    yield f"data: {json.dumps({'type': 'failed', 'tool': 'agent_loop', 'error': reason})}\n\n"
-                    session["stage"] = "done"
+                    _emit_event({'type': 'failed', 'tool': 'agent_loop', 'error': reason})
+                    b["stage"] = "done"
                     return
 
                 elif event_type == "agent_error":
                     error = data.get("error", "unknown")
-                    yield f"data: {json.dumps({'type': 'error', 'msg': f'Agent error: {error}'})}\n\n"
-                    session["stage"] = "done"
+                    _emit_event({'type': 'error', 'msg': f'Agent error: {error}'})
+                    b["stage"] = "done"
+                    return
+
+                elif event_type == "agent_cancelled":
+                    reason = data.get("reason", "Cancelled by user")
+                    _emit_event({'type': 'cancelled', 'msg': reason})
+                    b["stage"] = "done"
                     return
 
             except _queue.Empty:
@@ -392,115 +702,189 @@ def _run_agent_mode(config, state, sid, session, ssh_client, log_queue, plan):
     if vm_ip and vm_ip != "unknown":
         vm_mac = state.get_output("vm_mac", "")
         _audit(sid, "vm_build_complete", f"vm={config.vm_name} ip={vm_ip} mode=agent")
-        yield f"data: {json.dumps({'type': 'progress', 'percent': 100, 'step': len(plan), 'total': len(plan), 'tool': 'done'})}\n\n"
-        yield f"data: {json.dumps({'type': 'complete', 'vm_name': config.vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username})}\n\n"
+        _register_built_vm(b.get("host_ip"), config.vm_name)
+        _emit_event({'type': 'progress', 'percent': 100, 'step': len(plan), 'total': len(plan), 'tool': 'done'})
+        _emit_event({'type': 'complete', 'vm_name': config.vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username})
     else:
-        yield f"data: {json.dumps({'type': 'failed', 'tool': 'agent_loop', 'error': 'Agent loop ended without completion'})}\n\n"
-    session["stage"] = "done"
+        _emit_event({'type': 'failed', 'tool': 'agent_loop', 'error': 'Agent loop ended without completion'})
+    b["stage"] = "done"
 
 
 # ── Routes ────────────────────────────────────────────────────
+
+@app.before_request
+def _require_login():
+    """Gate the whole app (UI + APIs) behind the login flow.
+
+    The landing page itself is always served (it renders the login screen
+    when the session is not authenticated); every /api/* endpoint requires
+    an authenticated session, except /api/login and /api/logout.
+    """
+    if request.path in ("/", "/api/login", "/api/logout"):
+        return None
+    if not request.path.startswith("/api/"):
+        return None
+    sid = _get_session_id()
+    session = _get_session(sid)
+    if not session.get("authed"):
+        return jsonify({"error": "Authentication required"}), 401
+    return None
+
 
 @app.route("/")
 def index():
     _cleanup_stale_sessions()
     sid = _get_session_id()
-    _get_session(sid)  # ensure session exists
-    resp = make_response(render_template("index.html", dry_run=DRY_RUN))
+    session = _get_session(sid)  # ensure session exists
+    resp = make_response(render_template("index.html", dry_run=DRY_RUN, authed=bool(session.get("authed")), api_key_set=bool(API_KEY), username=session.get("username", ""), host_ip=session.get("host_ip", ""), session_token=sid))
     return _make_response_with_cookie(sid, resp)
+
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    """Connect with the KVM server credentials (server IP + SSH user + password).
+
+    The same credentials that connect to the KVM host gate the app: on success
+    the session is unlocked AND connected to the host in a single step.
+    In DRY_RUN the host is simulated, so any server IP / user / password is
+    accepted. On a real host, a bad password fails the SSH connection and the
+    connect is rejected.
+    """
+    sid = _get_session_id()
+    session = _get_session(sid)
+    data = request.json or {}
+    host_ip = (data.get("host_ip") or data.get("server_ip") or "").strip()
+    username = (data.get("username") or "").strip()
+    password = data.get("password", "")
+    error, payload = _connect_to_host(sid, session, host_ip, username, password)
+    if error:
+        _audit(sid, "login_failed", f"{username}@{host_ip}")
+        return jsonify({"error": error}), 401
+    session["authed"] = True
+    session["username"] = username
+    _audit(sid, "login", f"{username}@{host_ip}")
+    resp = make_response(jsonify({"ok": True, "username": username, "host_ip": host_ip, "session_token": sid, **payload}))
+    return _make_response_with_cookie(sid, resp)
+
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    """Disconnect: drop the SSH session and lock the console again."""
+    sid = _get_session_id()
+    session = _get_session(sid)
+    old_ssh = session.get("ssh_client")
+    if old_ssh:
+        try:
+            old_ssh.close()
+        except Exception:
+            pass
+    session["authed"] = False
+    session.pop("ssh_client", None)
+    session.pop("host_ip", None)
+    session.pop("host_username", None)
+    session.pop("host_password", None)
+    resp = make_response(jsonify({"ok": True}))
+    return _make_response_with_cookie(sid, resp)
+
+
+def _connect_to_host(sid, session, host_ip, username, password):
+    """Establish the KVM host SSH session (real or simulated).
+
+    Returns (error, payload). On success payload carries the host resources
+    summary; error is a human-readable message on failure.
+    """
+    if not host_ip or not username:
+        return "Server IP and SSH username are required.", None
+
+    if DRY_RUN:
+        fake_resources = {
+            "ram_total_gb": 128.0, "ram_free_gb": 112.0,
+            "cpu_count": 32, "cpu_free": 28, "cpu_allocated": 4,
+            "disk_total_gb": 2000.0, "disk_free_gb": 1400.0,
+        }
+        _seed_fake_vms(host_ip)
+        session.update({
+            "host_ip": host_ip, "host_username": username,
+            "host_password": password, "host_resources": fake_resources,
+            "ssh_client": _FakeSSH(host_ip),
+            "stage": "connected",
+        })
+        return None, {"summary": _format_summary(fake_resources), "resources": fake_resources, "host_ip": host_ip}
+
+    # Close existing SSH if any (fresh connect)
+    old_ssh = session.get("ssh_client")
+    if old_ssh:
+        try:
+            old_ssh.close()
+        except Exception:
+            pass
+
+    # SSH connect
+    try:
+        ssh = _make_ssh(host_ip, username, password)
+    except Exception as e:
+        return f"SSH connection failed: {e}", None
+
+    print(f"   [session {sid[:8]}] SSH connected to {host_ip}", flush=True)
+
+    # Ensure working directory
+    try:
+        _ssh_run(ssh, f"sudo -S mkdir -p {VM_WORK_DIR}", password, timeout=10)
+    except Exception as e:
+        print(f"   mkdir warning: {e}")
+
+    # Fetch resources
+    try:
+        resources = _fetch_host_resources(ssh, password)
+        print(f"   [session {sid[:8]}] Fetched resources: {resources}")
+    except Exception as e:
+        traceback.print_exc()
+        ssh.close()
+        return f"Failed to fetch host info: {e}", None
+
+    # Background package install (per-session, non-blocking)
+    def _bg_install():
+        try:
+            _ssh_run(
+                ssh,
+                f"sudo -S apt-get update -qq && sudo -S apt-get install -y -qq {KVM_APT_PACKAGES}",
+                password,
+                timeout=600,
+            )
+            print(f"   [session {sid[:8]}] Background package install finished.")
+        except Exception as e:
+            print(f"   [session {sid[:8]}] Background install warning: {e}")
+
+    threading.Thread(target=_bg_install, daemon=True).start()
+
+    # Update session state
+    session.update({
+        "host_ip": host_ip,
+        "host_username": username,
+        "host_password": password,
+        "host_resources": resources,
+        "ssh_client": ssh,
+        "stage": "connected",
+    })
+
+    return None, {"summary": _format_summary(resources), "resources": resources}
 
 
 @app.route("/api/connect", methods=["POST"])
 def api_connect():
-    """Step 1: SSH into KVM host, fetch system info."""
-    import traceback
+    """Switch / reconnect the KVM host (also connected at sign-in)."""
     sid = _get_session_id()
     session = _get_session(sid)
-
     try:
         data = request.json or {}
         host_ip = data.get("host_ip", "").strip()
         username = data.get("username", "").strip()
         password = data.get("password", "")
-
-        if not host_ip or not username:
-            return jsonify({"error": "host_ip and username are required"}), 400
-
-        if DRY_RUN:
-            fake_resources = {
-                "ram_total_gb": 128.0, "ram_free_gb": 112.0,
-                "cpu_count": 32, "cpu_free": 28, "cpu_allocated": 4,
-                "disk_total_gb": 2000.0, "disk_free_gb": 1400.0,
-            }
-            session.update({
-                "host_ip": host_ip, "host_username": username,
-                "host_password": password, "host_resources": fake_resources,
-                "stage": "connected",
-            })
-            summary = _format_summary(fake_resources)
-            resp = make_response(jsonify({"summary": summary, "resources": fake_resources}))
-            return _make_response_with_cookie(sid, resp)
-
-        # Close existing SSH if any (fresh connect)
-        old_ssh = session.get("ssh_client")
-        if old_ssh:
-            try:
-                old_ssh.close()
-            except Exception:
-                pass
-
-        # SSH connect
-        try:
-            ssh = _make_ssh(host_ip, username, password)
-        except Exception as e:
-            return jsonify({"error": f"SSH connection failed: {e}"}), 400
-
-        print(f"   [session {sid[:8]}] SSH connected to {host_ip}", flush=True)
-
-        # Ensure working directory
-        try:
-            _ssh_run(ssh, f"sudo -S mkdir -p {VM_WORK_DIR}", password, timeout=10)
-        except Exception as e:
-            print(f"   mkdir warning: {e}")
-
-        # Fetch resources
-        try:
-            resources = _fetch_host_resources(ssh, password)
-            print(f"   [session {sid[:8]}] Fetched resources: {resources}")
-        except Exception as e:
-            traceback.print_exc()
-            ssh.close()
-            return jsonify({"error": f"Failed to fetch host info: {e}"}), 500
-
-        # Background package install (per-session, non-blocking)
-        def _bg_install():
-            try:
-                _ssh_run(
-                    ssh,
-                    f"sudo -S apt-get update -qq && sudo -S apt-get install -y -qq {KVM_APT_PACKAGES}",
-                    password,
-                    timeout=600,
-                )
-                print(f"   [session {sid[:8]}] Background package install finished.")
-            except Exception as e:
-                print(f"   [session {sid[:8]}] Background install warning: {e}")
-
-        threading.Thread(target=_bg_install, daemon=True).start()
-
-        # Update session state
-        session.update({
-            "host_ip": host_ip,
-            "host_username": username,
-            "host_password": password,
-            "host_resources": resources,
-            "ssh_client": ssh,
-            "stage": "connected",
-        })
-
-        summary = _format_summary(resources)
-        resp = make_response(jsonify({"summary": summary, "resources": resources}))
+        error, payload = _connect_to_host(sid, session, host_ip, username, password)
+        if error:
+            return jsonify({"error": error}), 400
+        resp = make_response(jsonify(payload))
         return _make_response_with_cookie(sid, resp)
-
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"Unexpected server error: {e}"}), 500
@@ -565,187 +949,267 @@ def api_execute():
     session["stage"] = "running"
     _audit(sid, "vm_build_start", f"vm={config.vm_name} agent={effective_agent_mode}")
 
+    plan = orchestrator.build_plan(config)
+    b = _new_build(sid, config, effective_agent_mode, plan)
+    b["config"] = config
+    # Snapshot the host this build was started against. The build owns its
+    # own SSH connection, so disconnecting or switching servers in the UI
+    # never kills it — or worse, redirects it to a different host.
+    b["host_ip"] = session.get("host_ip")
+    b["host_username"] = session.get("host_username")
+    b["host_password"] = session.get("host_password")
+    _register_build(b)
+
     def generate():
-        from tools import TOOL_REGISTRY
-        from settings import MAX_RETRIES
-        import queue as _queue
+        yield f"data: {json.dumps({'type': 'build_id', 'build_id': b['id'], 'vm_name': config.vm_name, 'host_ip': b.get('host_ip')})}\n\n"
 
-        plan = orchestrator.build_plan(config)
-        state = AgentState()
-        state.set_plan(plan)
+        import contextvars as _cv
+        _ctx = _cv.copy_context()
+        threading.Thread(target=lambda: _ctx.run(_run_build_thread, b["id"]), daemon=True).start()
 
-        # Inject per-session SSH + credentials into state
-        ssh_client = session.get("ssh_client")
-        if ssh_client and not DRY_RUN:
-            state.set_output("host_ssh", ssh_client)
-        state.set_output("host_password", session.get("host_password", ""))
-        # Store host credentials so agent can reconnect if SSH drops
-        state.set_output("host_ip", session.get("host_ip", ""))
-        state.set_output("host_username", session.get("host_username", "ubuntu"))
+        while not b.get("done") or b["events"]:
+            with b["lock"]:
+                while b["events"]:
+                    yield f"data: {json.dumps(b['events'].pop(0))}\n\n"
+            time.sleep(0.3)
 
-        # Set per-VM log file + real-time log stream queue
-        log_queue = _queue.Queue(maxsize=1000)
+    return Response(generate(), mimetype="text/event-stream")
+
+def _run_build_thread(build_id):
+    """Run a VM build to completion in its own daemon thread.
+
+    Each build gets its own log file + stream queue (via contextvars) and
+    its own event buffer, so multiple builds run concurrently and each
+    session can watch/cancel them independently.
+    """
+    with _BUILDS_LOCK:
+        b = _BUILDS.get(build_id)
+    if b is None:
+        return
+    try:
         try:
-            from tools.installer_autopilot import _set_log_file, _set_log_stream_queue
-            _set_log_file(f"{config.vm_name}.txt")
-            _set_log_stream_queue(log_queue)
+            from tools.installer_autopilot import _set_log_file, _set_log_stream_queue, _init_log
+            _set_log_file(f"{b['vm_name']}.txt")
+            _set_log_stream_queue(b["queue"])
+            # Create the log file up front (with a header) so the in-UI log
+            # viewer, tail endpoint and download all work even when a build
+            # emits no streamed lines (e.g. dry-run).
+            _init_log()
+        except Exception:
+            pass
+        _run_build_plan(b)
+    except Exception as e:
+        _emit(b, {"type": "error", "msg": f"Build thread error: {e}"})
+    finally:
+        b["done"] = True
+        if b["stage"] == "running":
+            b["stage"] = "done"
+        try:
+            if b.get("ssh_client"):
+                b["ssh_client"].close()
+        except Exception:
+            pass
+        try:
+            from tools.installer_autopilot import _set_log_stream_queue
+            _set_log_stream_queue(None)
         except Exception:
             pass
 
-        print(f"\n{'='*60}", flush=True)
-        mode_label = "AGENT" if effective_agent_mode else "CLASSIC"
-        print(f"[EXECUTE][{sid[:8]}][{mode_label}] Starting for VM '{config.vm_name}'", flush=True)
-        print(f"{'='*60}", flush=True)
 
-        yield f"data: {json.dumps({'type': 'start', 'total': len(plan), 'plan': plan, 'agent_mode': effective_agent_mode})}\n\n"
+def _run_build_plan(b):
+    """Execute the classic plan for build b (agent mode dispatched from here)."""
+    from tools import TOOL_REGISTRY
+    from settings import MAX_RETRIES
+    import queue as _queue
+    import contextvars as _cv
 
-        # ─── AGENT MODE: Looping agentic loop ────────────────
-        if effective_agent_mode:
-            yield from _run_agent_mode(
-                config, state, sid, session, ssh_client, log_queue, plan
-            )
-            return
+    config = b["config"]
+    sid = b["sid"]
+    session = _get_session(sid)
+    run_agentic = bool(b["agent_mode"]) and bool(ANTHROPIC_API_KEY)
 
-        # ─── CLASSIC MODE: Hardcoded plan ────────────────────
-        # (original code below, unchanged)
+    plan = b["plan"]
+    state = AgentState()
+    state.set_plan(plan)
 
-        def _drain_log_queue():
-            """Drain all pending log lines from the queue and yield SSE events."""
-            events = []
-            while True:
-                try:
-                    line = log_queue.get_nowait()
-                    events.append(f"data: {json.dumps({'type': 'log', 'line': line})}\n\n")
-                except _queue.Empty:
-                    break
-            return events
-
-        def _ensure_ssh_alive():
-            """Check if SSH is still alive, reconnect if needed."""
-            nonlocal ssh_client
-            try:
-                if ssh_client and ssh_client.get_transport() and ssh_client.get_transport().is_active():
-                    ssh_client.get_transport().send_ignore()
-                    return
-            except Exception:
-                pass
-            print(f"   [session {sid[:8]}] [SSH] Reconnecting (session died)...", flush=True)
-            try:
-                pw = session.get("host_password", "")
-                usr = session.get("host_username", "ubuntu")
-                host = session.get("host_ip")
-                ssh_client = _make_ssh(host, usr, pw)
-                session["ssh_client"] = ssh_client
-                state.set_output("host_ssh", ssh_client)
-                print(f"   [session {sid[:8]}] [SSH] Reconnected!", flush=True)
-            except Exception as e:
-                print(f"   [session {sid[:8]}] [SSH] Reconnect failed: {e}", flush=True)
-
+    # Each build owns a dedicated SSH connection to the host it was started
+    # on, so disconnecting or switching servers in the UI never kills the
+    # build or redirects it to a different host.
+    ssh_client = b.get("ssh_client")
+    if ssh_client is None and not DRY_RUN:
         try:
-            for idx, tool_name in enumerate(plan, 1):
-                if not DRY_RUN:
-                    _ensure_ssh_alive()
+            ssh_client = _make_ssh(b.get("host_ip"), b.get("host_username", "ubuntu"), b.get("host_password", ""))
+            b["ssh_client"] = ssh_client
+            _emit(b, {"type": "log", "line": f"[build] SSH session to {b.get('host_ip')} opened"})
+        except Exception as e:
+            _emit(b, {"type": "failed", "tool": "ssh", "error": f"Could not open build SSH session to {b.get('host_ip')}: {e}"})
+            b["stage"] = "done"
+            return
+    if ssh_client and not DRY_RUN:
+        state.set_output("host_ssh", ssh_client)
+    state.set_output("host_password", b.get("host_password", ""))
+    state.set_output("host_ip", b.get("host_ip", ""))
+    state.set_output("host_username", b.get("host_username", "ubuntu"))
 
-                fn = TOOL_REGISTRY.get(tool_name)
-                if fn is None:
-                    yield f"data: {json.dumps({'type': 'error', 'tool': tool_name, 'msg': 'not found'})}\n\n"
-                    break
+    if b["agent_mode"] and not ANTHROPIC_API_KEY:
+        _emit(b, {"type": "log", "line": "⚠ No ANTHROPIC_API_KEY set — agent mode unavailable, falling back to the classic plan."})
+        _emit(b, {"type": "log", "line": "⚠ Set ANTHROPIC_API_KEY to enable the agentic loop."})
 
-                state.mark_running(tool_name)
-                # Progress: send percentage complete based on step number
-                pct = int((idx - 1) / len(plan) * 100)
-                yield f"data: {json.dumps({'type': 'progress', 'percent': pct, 'step': idx, 'total': len(plan), 'tool': tool_name})}\n\n"
+    print(f"\n{'='*60}", flush=True)
+    mode_label = "AGENT" if run_agentic else "CLASSIC"
+    print(f"[EXECUTE][{sid[:8]}][{mode_label}] Starting for VM '{config.vm_name}'", flush=True)
+    print(f"{'='*60}", flush=True)
 
-                # Run tool in a background thread so we can drain logs while it runs
-                import threading as _th
-                tool_result_holder = {"result": None, "done": False}
+    _emit(b, {"type": "start", "total": len(plan), "plan": plan, "agent_mode": run_agentic})
 
-                def _run_tool():
-                    try:
-                        tool_result_holder["result"] = fn(config, state)
-                    except Exception as _e:
-                        tool_result_holder["result"] = {"status": "failed", "error": str(_e), "data": None}
-                    finally:
-                        tool_result_holder["done"] = True
+    # ─── AGENT MODE: Looping agentic loop ────────────────
+    if run_agentic:
+        _run_agent_mode(b, config, state, session, ssh_client, plan)
+        return
 
-                result = None
-                for attempt in range(1, MAX_RETRIES + 1):
-                    print(f"\n[{sid[:8]}][{idx}/{len(plan)}] ▶ {tool_name} (attempt {attempt}/{MAX_RETRIES})", flush=True)
-                    yield f"data: {json.dumps({'type': 'running', 'tool': tool_name, 'step': idx, 'attempt': attempt})}\n\n"
-
-                    tool_result_holder["done"] = False
-                    tool_result_holder["result"] = None
-                    t = _th.Thread(target=_run_tool, daemon=True)
-                    t.start()
-
-                    # While tool runs, drain log queue and yield log events
-                    while not tool_result_holder["done"]:
-                        events = _drain_log_queue()
-                        for ev in events:
-                            yield ev
-                        time.sleep(0.3)
-                    # Final drain
-                    for ev in _drain_log_queue():
-                        yield ev
-
-                    result = tool_result_holder["result"] or {"status": "failed", "error": "no result"}
-
-                    if result["status"] == "success":
-                        state.mark_done(tool_name)
-                        state.record_result(tool_name, result)
-                        print(f"[{sid[:8]}][{idx}/{len(plan)}] ✅ {tool_name}", flush=True)
-
-                        commentary = orchestrator._narrate_step(
-                            tool_name, result, f"{idx}/{len(plan)} done", config
-                        )
-                        yield f"data: {json.dumps({'type': 'done', 'tool': tool_name, 'step': idx, 'narration': commentary or ''})}\n\n"
-                        break
-                    else:
-                        print(f"[{sid[:8]}][{idx}/{len(plan)}] ⚠ {tool_name} FAILED: {result.get('error','')}", flush=True)
-                        yield f"data: {json.dumps({'type': 'retry', 'tool': tool_name, 'attempt': attempt, 'error': result.get('error', '')})}\n\n"
-                        if attempt < MAX_RETRIES:
-                            time.sleep(2)
-                        else:
-                            state.mark_failed(tool_name, result["error"])
-                            print(f"[{sid[:8]}][{idx}/{len(plan)}] ❌ {tool_name} — giving up", flush=True)
-                            _audit(sid, "vm_build_failed", f"vm={config.vm_name} tool={tool_name} err={result.get('error','')[:200]}")
-
-                            # ─── Auto-rollback: clean up partial VM ───
-                            if not DRY_RUN and idx > 1:
-                                try:
-                                    yield f"data: {json.dumps({'type': 'log', 'line': f'⚠ Auto-rollback: cleaning up partial VM {config.vm_name}...'})}\n\n"
-                                    _ssh_run(ssh_client, f"sudo -S virsh destroy {config.vm_name} 2>/dev/null || true", password=session.get('host_password', ''))
-                                    time.sleep(1)
-                                    _ssh_run(ssh_client, f"sudo -S virsh undefine {config.vm_name} --remove-all-storage 2>/dev/null || true", password=session.get('host_password', ''))
-                                    _ssh_run(ssh_client, f"sudo -S rm -f {VM_WORK_DIR}/{config.vm_name}_pci*.xml 2>/dev/null", password=session.get('host_password', ''))
-                                    yield f"data: {json.dumps({'type': 'log', 'line': '✅ Rollback complete'})}\n\n"
-                                    _audit(sid, "auto_rollback", f"vm={config.vm_name}")
-                                except Exception as _e:
-                                    yield f"data: {json.dumps({'type': 'log', 'line': f'⚠ Rollback error: {_e}'})}\n\n"
-
-                            yield f"data: {json.dumps({'type': 'failed', 'tool': tool_name, 'error': result.get('error', '')})}\n\n"
-                            session["stage"] = "done"
-                            return
-
-            # All tools completed successfully
-            vm_ip = state.get_output("vm_ip", "unknown")
-            vm_mac = state.get_output("vm_mac", "")
-            print(f"\n{'='*60}", flush=True)
-            print(f"[{sid[:8]}][COMPLETE] VM '{config.vm_name}' ready — IP: {vm_ip} MAC: {vm_mac}", flush=True)
-            print(f"{'='*60}\n", flush=True)
-            _audit(sid, "vm_build_complete", f"vm={config.vm_name} ip={vm_ip}")
-            yield f"data: {json.dumps({'type': 'progress', 'percent': 100, 'step': len(plan), 'total': len(plan), 'tool': 'done'})}\n\n"
-            yield f"data: {json.dumps({'type': 'complete', 'vm_name': config.vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username})}\n\n"
-            session["stage"] = "done"
-        finally:
-            # Clear the log stream queue
+    # ─── CLASSIC MODE: Hardcoded plan ────────────────────
+    def _drain_log_queue():
+        """Drain pending installer log lines into the build's buffer."""
+        while True:
             try:
-                from tools.installer_autopilot import _set_log_stream_queue
-                _set_log_stream_queue(None)
-            except Exception:
-                pass
+                _emit(b, {"type": "log", "line": b["queue"].get_nowait()})
+            except _queue.Empty:
+                break
 
-    return Response(generate(), mimetype="text/event-stream")
+    def _ensure_ssh_alive():
+        """Check if the build's SSH is still alive, reconnect if needed."""
+        nonlocal ssh_client
+        try:
+            if ssh_client and ssh_client.get_transport() and ssh_client.get_transport().is_active():
+                ssh_client.get_transport().send_ignore()
+                return
+        except Exception:
+            pass
+        print(f"   [build {b['id']}] [SSH] Reconnecting to {b.get('host_ip')}...", flush=True)
+        try:
+            pw = b.get("host_password", "")
+            usr = b.get("host_username", "ubuntu")
+            host = b.get("host_ip")
+            ssh_client = _make_ssh(host, usr, pw)
+            b["ssh_client"] = ssh_client
+            state.set_output("host_ssh", ssh_client)
+            print(f"   [build {b['id']}] [SSH] Reconnected!", flush=True)
+            _emit(b, {"type": "log", "line": f"[build] SSH reconnected to {host}"})
+        except Exception as e:
+            print(f"   [build {b['id']}] [SSH] Reconnect failed: {e}", flush=True)
+            _emit(b, {"type": "log", "line": f"[build] ⚠ SSH reconnect failed: {e}"})
+
+    try:
+        for idx, tool_name in enumerate(plan, 1):
+            if b["cancel_requested"]:
+                _emit(b, {"type": "cancelled", "msg": "Build cancelled by user. In-flight operations may still be finishing on the host."})
+                b["stage"] = "done"
+                return
+
+            if not DRY_RUN:
+                _ensure_ssh_alive()
+
+            fn = TOOL_REGISTRY.get(tool_name)
+            if fn is None:
+                _emit(b, {"type": "error", "tool": tool_name, "msg": "not found"})
+                break
+
+            state.mark_running(tool_name)
+            pct = int((idx - 1) / len(plan) * 100)
+            _emit(b, {"type": "progress", "percent": pct, "step": idx, "total": len(plan), "tool": tool_name})
+
+            # Run tool in a background thread so we can drain logs while it runs
+            import threading as _th
+            tool_result_holder = {"result": None, "done": False}
+
+            def _run_tool():
+                try:
+                    tool_result_holder["result"] = fn(config, state)
+                except Exception as _e:
+                    tool_result_holder["result"] = {"status": "failed", "error": str(_e), "data": None}
+                finally:
+                    tool_result_holder["done"] = True
+
+            result = None
+            for attempt in range(1, MAX_RETRIES + 1):
+                print(f"\n[{sid[:8]}][{idx}/{len(plan)}] ▶ {tool_name} (attempt {attempt}/{MAX_RETRIES})", flush=True)
+                _emit(b, {"type": "running", "tool": tool_name, "step": idx, "attempt": attempt})
+
+                tool_result_holder["done"] = False
+                tool_result_holder["result"] = None
+                _ctx = _cv.copy_context()
+                t = _th.Thread(target=lambda: _ctx.run(_run_tool), daemon=True)
+                t.start()
+
+                # While tool runs, drain log queue and emit log events
+                while not tool_result_holder["done"]:
+                    if b["cancel_requested"]:
+                        break
+                    _drain_log_queue()
+                    time.sleep(0.3)
+                # Final drain
+                _drain_log_queue()
+
+                if b["cancel_requested"]:
+                    _emit(b, {"type": "cancelled", "msg": "Build cancelled by user. In-flight operations may still be finishing on the host."})
+                    b["stage"] = "done"
+                    return
+
+                result = tool_result_holder["result"] or {"status": "failed", "error": "no result"}
+
+                if result["status"] == "success":
+                    state.mark_done(tool_name)
+                    state.record_result(tool_name, result)
+                    print(f"[{sid[:8]}][{idx}/{len(plan)}] ✅ {tool_name}", flush=True)
+
+                    commentary = orchestrator._narrate_step(
+                        tool_name, result, f"{idx}/{len(plan)} done", config
+                    )
+                    _emit(b, {"type": "done", "tool": tool_name, "step": idx, "narration": commentary or ""})
+                    break
+                else:
+                    print(f"[{sid[:8]}][{idx}/{len(plan)}] ⚠ {tool_name} FAILED: {result.get('error','')}", flush=True)
+                    _emit(b, {"type": "retry", "tool": tool_name, "attempt": attempt, "error": result.get("error", "")})
+                    if attempt < MAX_RETRIES:
+                        time.sleep(2)
+                    else:
+                        state.mark_failed(tool_name, result["error"])
+                        print(f"[{sid[:8]}][{idx}/{len(plan)}] ❌ {tool_name} — giving up", flush=True)
+                        _audit(sid, "vm_build_failed", f"vm={config.vm_name} tool={tool_name} err={result.get('error','')[:200]}")
+
+                        # ─── Auto-rollback: clean up partial VM ───
+                        if not DRY_RUN and idx > 1:
+                            try:
+                                _emit(b, {"type": "log", "line": f"⚠ Auto-rollback: cleaning up partial VM {config.vm_name}..."})
+                                _ssh_run(ssh_client, f"sudo -S virsh destroy {config.vm_name} 2>/dev/null || true", password=b.get('host_password', ''))
+                                time.sleep(1)
+                                _ssh_run(ssh_client, f"sudo -S virsh undefine {config.vm_name} --remove-all-storage 2>/dev/null || true", password=b.get('host_password', ''))
+                                _ssh_run(ssh_client, f"sudo -S rm -f {VM_WORK_DIR}/{config.vm_name}_pci*.xml 2>/dev/null", password=b.get('host_password', ''))
+                                _emit(b, {"type": "log", "line": "✅ Rollback complete"})
+                                _audit(sid, "auto_rollback", f"vm={config.vm_name}")
+                            except Exception as _e:
+                                _emit(b, {"type": "log", "line": f"⚠ Rollback error: {_e}"})
+
+                        _emit(b, {"type": "failed", "tool": tool_name, "error": result.get("error", "")})
+                        b["stage"] = "done"
+                        return
+
+        # All tools completed successfully
+        vm_ip = state.get_output("vm_ip", "unknown")
+        vm_mac = state.get_output("vm_mac", "")
+        print(f"\n{'='*60}", flush=True)
+        print(f"[{sid[:8]}][COMPLETE] VM '{config.vm_name}' ready — IP: {vm_ip} MAC: {vm_mac}", flush=True)
+        print(f"{'='*60}\n", flush=True)
+        _audit(sid, "vm_build_complete", f"vm={config.vm_name} ip={vm_ip}")
+        _register_built_vm(b.get("host_ip"), config.vm_name)
+        _emit(b, {"type": "progress", "percent": 100, "step": len(plan), "total": len(plan), "tool": "done"})
+        _emit(b, {"type": "complete", "vm_name": config.vm_name, "vm_ip": vm_ip, "vm_mac": vm_mac, "username": config.vm_username})
+        b["stage"] = "done"
+    finally:
+        # Ensure the stream is marked finished even on early exit
+        b["done"] = True
+        if b["stage"] == "running":
+            b["stage"] = "done"
 
 
 @app.route("/api/list_vms", methods=["GET"])
@@ -908,7 +1372,199 @@ def api_session_status():
         "vm_name": config.vm_name if config else None,
         "host_ip": session.get("host_ip"),
         "connected": session.get("ssh_client") is not None,
+        "agent_mode": session.get("agent_mode", False),
     })
+
+
+# ─── Natural-language VM request parsing ─────────────────────
+
+def _heuristic_extract(message: str) -> dict:
+    """Best-effort regex extraction used when the LLM is unavailable.
+
+    Covers the common patterns (name/memory/cores/disk/AIC cards/type)
+    so the natural-language box still works without an API key.
+    """
+    out: dict = {}
+
+    m = (re.search(r"(?:named|called|name\s*=|name\s+is)\s+([a-zA-Z0-9][a-zA-Z0-9._-]*)", message, re.I)
+         or re.search(r"\bvm\s+([a-zA-Z][a-zA-Z0-9._-]*)", message, re.I))
+    if m:
+        out["vm_name"] = m.group(1)
+
+    m = (re.search(r"(\d+)\s*(?:gb|g)\s*(?:ram|memory|mem)", message, re.I)
+         or re.search(r"(?:ram|memory|mem)\w*\s*[:=]?\s*(\d+)\s*(?:gb|g)", message, re.I))
+    if m:
+        out["memory_gb"] = int(m.group(1))
+
+    # Word-based core counts first ("quad core" -> 4, "dual core" -> 2)
+    m = re.search(r"(single|one)\s*cores?", message, re.I)
+    if m:
+        out["num_cpu"] = 1
+    m = re.search(r"(dual|two|double)\s*cores?", message, re.I)
+    if m:
+        out["num_cpu"] = 2
+    m = re.search(r"(quad|four|quadruple)\s*cores?", message, re.I)
+    if m:
+        out["num_cpu"] = 4
+    m = re.search(r"(octa|eight|8)\s*cores?", message, re.I)
+    if m:
+        out["num_cpu"] = 8
+    if "num_cpu" not in out:
+        m = re.search(r"(\d+)\s*-?\s*(?:cores?|cpus?|vcpus?)", message, re.I)
+        if m:
+            out["num_cpu"] = int(m.group(1))
+
+    # Disk only when the number is tied to disk/storage context, or is in TB
+    m = (re.search(r"(\d+(?:\.\d+)?)\s*(tb|gb|g)\s*(?:disk|storage|drive|space)", message, re.I)
+         or re.search(r"(?:disk|storage|drive)\w*\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(tb|gb|g)", message, re.I)
+         or re.search(r"(\d+(?:\.\d+)?)\s*tb\b", message, re.I))
+    if m:
+        val = float(m.group(1))
+        unit = m.group(2).lower()
+        out["disk_size"] = f"{int(val * 1024) if unit == 'tb' else int(val)}G"
+
+    # Bare GB number with no disk/storage context defaults to memory
+    # (covers the common phrasing "32 GB / 4-core VM") but never overrides
+    # an explicit disk size or a memory value that was already found.
+    if "memory_gb" not in out and "disk_size" not in out:
+        m = re.search(r"(\d+)\s*(?:gb|g)\b", message, re.I)
+        if m:
+            out["memory_gb"] = int(m.group(1))
+
+    m = re.search(r"(\d+)\s*(?:aic|card|cards|accelerators?)", message, re.I)
+    if m:
+        out["aic_cards"] = int(m.group(1))
+
+    if re.search(r"\bp2p\b|\bpeer\b", message, re.I):
+        out["vm_type"] = "p2p"
+
+    return out
+
+
+@app.route("/api/parse_request", methods=["POST"])
+def api_parse_request():
+    """Turn a natural-language request into a VM config dict.
+
+    Uses Claude via input_extractor when ANTHROPIC_API_KEY is set,
+    otherwise falls back to regex heuristics so the UI stays usable.
+    """
+    sid = _get_session_id()
+    data = request.json or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "message is required"}), 400
+
+    from settings import ANTHROPIC_API_KEY
+
+    extracted: dict = {}
+    used_llm = False
+    note = None
+    if ANTHROPIC_API_KEY:
+        try:
+            extracted = input_extractor.extract_vm_config(message)
+            used_llm = True
+        except Exception as e:
+            extracted = {}
+            note = f"Claude extraction failed ({e}) — used built-in parsing instead."
+    else:
+        note = "ANTHROPIC_API_KEY not set — used built-in parsing."
+
+    # Fill anything still missing with heuristics
+    for k, v in _heuristic_extract(message).items():
+        extracted.setdefault(k, v)
+
+    # Sensible defaults for unset fields
+    defaults = {
+        "vm_username": "ubuntu",
+        "vm_type": "normal",
+        "disk_size": "100G",
+        "os_image": "/home/vm_images/ubuntu-24.04.3-live-server-amd64.iso",
+        "debug": "enable",
+    }
+    for k, v in defaults.items():
+        if not extracted.get(k):
+            extracted[k] = v
+
+    allowed = {
+        "vm_name", "memory_gb", "num_cpu", "disk_size", "disk_path",
+        "os_image", "aic_cards", "vm_type", "acs_state",
+        "vm_username", "vm_password", "debug",
+    }
+    cleaned = {k: v for k, v in extracted.items() if k in allowed and v not in (None, "")}
+    _audit(sid, "parse_request", f"llm={used_llm}")
+    return jsonify({"config": cleaned, "used_llm": used_llm, "note": note})
+
+
+@app.route("/api/cancel", methods=["POST"])
+def api_cancel():
+    """Request cancellation of a build (per build_id, or all this session's)."""
+    sid = _get_session_id()
+    data = request.get_json(silent=True) or {}
+    build_id = (data.get("build_id") or "").strip()
+    cancelled = []
+    with _BUILDS_LOCK:
+        if build_id:
+            b = _BUILDS.get(build_id)
+            if b and b["sid"] == sid and b["stage"] == "running":
+                b["cancel_requested"] = True
+                cancelled.append(build_id)
+        else:
+            # Back-compat: cancel every running build for this session
+            for b in _BUILDS.values():
+                if b["sid"] == sid and b["stage"] == "running":
+                    b["cancel_requested"] = True
+                    cancelled.append(b["id"])
+    if cancelled:
+        _audit(sid, "cancel", f"builds={','.join(cancelled)}")
+    return jsonify({"status": "cancelling", "cancelled": cancelled})
+
+
+@app.route("/api/builds", methods=["GET"])
+def api_builds():
+    """List this session's builds (running + recent) so the UI can restore
+    live build cards and log viewers after a page refresh."""
+    sid = _get_session_id()
+    with _BUILDS_LOCK:
+        builds = [_build_snapshot(b) for b in _BUILDS.values() if b["sid"] == sid]
+    builds.sort(key=lambda x: x["started_at"], reverse=True)
+    return jsonify({"builds": builds})
+
+
+@app.route("/api/build_logs/<build_id>", methods=["GET"])
+def api_build_logs(build_id):
+    """Return the recent log lines captured for a specific build."""
+    sid = _get_session_id()
+    with _BUILDS_LOCK:
+        b = _BUILDS.get(build_id)
+        if not b or b["sid"] != sid:
+            return jsonify({"error": "build not found"}), 404
+        lines = list(b["log_lines"])[-500:]
+        snapshot = _build_snapshot(b)
+    return jsonify({"lines": lines, **snapshot})
+
+
+@app.route("/api/execute_stream/<build_id>", methods=["GET"])
+def api_execute_stream(build_id):
+    """Re-attach to an already-running build and stream its events (SSE).
+
+    Used after a page refresh or when switching the focused console back to
+    an earlier build: replays the build's buffered events, then live ones.
+    """
+    sid = _get_session_id()
+    with _BUILDS_LOCK:
+        b = _BUILDS.get(build_id)
+        if not b or b["sid"] != sid:
+            return jsonify({"error": "build not found"}), 404
+
+    def generate():
+        yield f"data: {json.dumps({'type': 'build_id', 'build_id': b['id'], 'vm_name': b['vm_name'], 'replay': True})}\n\n"
+        while not b.get("done") or b["events"]:
+            with b["lock"]:
+                while b["events"]:
+                    yield f"data: {json.dumps(b['events'].pop(0))}\n\n"
+            time.sleep(0.3)
+
+    return Response(generate(), mimetype="text/event-stream")
 
 
 @app.route("/api/logs/tail/<vm_name>", methods=["GET"])

@@ -3,1304 +3,1753 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VM Agent</title>
+    <title>VM Agent — AI Provisioning Console</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         :root{
-            --surface-0:#09090b;
-            --surface-1:#111113;
-            --surface-2:#18181b;
-            --surface-3:#1f1f23;
-            --surface-4:#27272a;
-            --border-1:#27272a;
-            --border-2:#3f3f46;
-            --text-0:#fafafa;
-            --text-1:#a1a1aa;
-            --text-2:#71717a;
-            --text-3:#52525b;
-            --indigo:#6366f1;
-            --indigo-light:#818cf8;
-            --indigo-glow:rgba(99,102,241,.12);
-            --emerald:#10b981;
-            --emerald-glow:rgba(16,185,129,.1);
-            --amber:#f59e0b;
-            --rose:#f43f5e;
-            --font:'Inter',system-ui,-apple-system,sans-serif;
-            --mono:'Fira Code','Menlo',monospace;
+            --bg:#0b1220;
+            --surface-0:#0e1626;
+            --surface-1:#111b2e;
+            --surface-2:#152238;
+            --surface-3:#1b2a44;
+            --surface-4:#24395c;
+            --border-1:#1c2b45;
+            --border-2:#2a3f63;
+            --border-3:#3d5784;
+            --text-0:#f1f5fb;
+            --text-1:#a8b6cc;
+            --text-2:#64748b;
+            --accent:#8b5cf6;
+            --accent-ink:#ffffff;
+            --accent-soft:rgba(139,92,246,.12);
+            --accent-border:rgba(139,92,246,.4);
+            --glow:rgba(139,92,246,.45);
+            --thinking:#f59e0b;
+            --thinking-soft:rgba(245,158,11,.1);
+            --danger:#ef4444;
+            --danger-soft:rgba(239,68,68,.12);
+            --info:#a78bfa;
+            --info-soft:rgba(167,139,250,.12);
+            --radius:10px;
+            --radius-sm:6px;
+            --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+            --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+            --disp:"Inter",var(--sans);
         }
-        html,body{height:100%;font-family:var(--font);background:var(--surface-0);color:var(--text-0);-webkit-font-smoothing:antialiased}
+        html{scroll-behavior:smooth}
+        body{
+            background:var(--bg);
+            color:var(--text-0);
+            font-family:var(--sans);
+            font-size:14px;
+            line-height:1.55;
+            -webkit-font-smoothing:antialiased;
+            background-image:
+                radial-gradient(1100px 520px at 82% -12%, rgba(139,92,246,.09), transparent 60%),
+                radial-gradient(900px 460px at -12% 8%, rgba(217,70,239,.05), transparent 60%);
+        }
+        body::before{
+            content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+            background-image:
+                linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),
+                linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+            background-size:44px 44px;
+            mask-image:radial-gradient(ellipse 110% 65% at 50% -10%, #000 0%, transparent 70%);
+            -webkit-mask-image:radial-gradient(ellipse 110% 65% at 50% -10%, #000 0%, transparent 70%);
+        }
+        ::selection{background:rgba(139,92,246,.35)}
+        button{font-family:var(--sans);cursor:pointer;border:none;background:none;color:inherit}
+        input,select,textarea{font-family:var(--sans);color:var(--text-0)}
+        a{color:var(--accent);text-decoration:none}
 
-        /* === LAYOUT === */
-        .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
-
-        /* === HEADER === */
-        .header{
-            display:flex;align-items:center;justify-content:space-between;
-            padding:12px 24px;
-            background:var(--surface-1);
+        .topbar{
+            position:sticky;top:0;z-index:50;
+            display:flex;align-items:center;justify-content:space-between;gap:16px;
+            padding:10px 24px;
+            background:rgba(10,11,14,.85);
+            backdrop-filter:blur(14px);
+            -webkit-backdrop-filter:blur(14px);
             border-bottom:1px solid var(--border-1);
-            flex-shrink:0;
         }
-        .header-left{display:flex;align-items:center;gap:12px}
-        .logo-mark{
-            width:28px;height:28px;border-radius:7px;
-            background:linear-gradient(135deg,var(--indigo),#a78bfa);
+        .brand{display:flex;align-items:center;gap:12px}
+        .brand-mark{
+            width:32px;height:32px;border-radius:8px;
             display:grid;place-items:center;
-            font-size:13px;font-weight:700;color:#fff;
+            background:var(--accent);
+            color:var(--accent-ink);font-weight:800;font-size:13px;
+            font-family:var(--mono);letter-spacing:-1px;
+            box-shadow:0 0 0 1px rgba(139,92,246,.4), 0 4px 20px rgba(139,92,246,.28);
         }
-        .header h1{font-size:.9rem;font-weight:600;letter-spacing:-.02em}
-        .header h1 span{color:var(--text-2);font-weight:400;margin-left:6px}
-        .badge{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:100px}
-        .badge-dry{background:var(--indigo-glow);color:var(--indigo-light);border:1px solid var(--indigo)}
-        .badge-live{background:var(--emerald-glow);color:var(--emerald);border:1px solid var(--emerald)}
-
-        /* === STEPPER === */
-        .stepper{
-            display:flex;align-items:center;gap:0;
-            padding:14px 24px;
-            background:var(--surface-1);
-            border-bottom:1px solid var(--border-1);
-            flex-shrink:0;
+        .brand-name{font-weight:700;font-size:14.5px;letter-spacing:.1px;font-family:var(--disp)}
+        .brand-sub{font-size:10px;color:var(--text-2);margin-top:2px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em}
+        .sys{
+            display:none;align-items:center;gap:7px;margin-right:auto;margin-left:18px;
+            font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);
         }
-        .step{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--text-3);transition:color .2s}
-        .step.active{color:var(--text-0)}
-        .step.done{color:var(--emerald)}
-        .step-num{
-            width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border-2);
-            display:grid;place-items:center;font-size:.7rem;font-weight:600;
-            transition:all .2s;flex-shrink:0;
+        .sys::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+        .topbar-right{display:flex;align-items:center;gap:12px}
+
+        .badge{
+            display:inline-flex;align-items:center;gap:6px;
+            font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+            padding:3px 9px;border-radius:6px;
+            font-family:var(--mono);
         }
-        .step.active .step-num{border-color:var(--indigo);background:var(--indigo);color:#fff}
-        .step.done .step-num{border-color:var(--emerald);background:var(--emerald);color:#fff}
-        .step-divider{flex:1;height:1px;background:var(--border-1);margin:0 12px;max-width:60px}
+        .badge-amber{background:var(--thinking-soft);color:var(--thinking);border:1px solid rgba(242,184,75,.3)}
+        .badge-green{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent-border)}
+        .badge-blue{background:var(--info-soft);color:var(--info);border:1px solid rgba(167,139,250,.35)}
+        .badge-red{background:var(--danger-soft);color:var(--danger);border:1px solid rgba(255,107,107,.3)}
+        .badge-gray{background:rgba(148,163,184,.08);color:var(--text-1);border:1px solid var(--border-2)}
+        .user-chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text-1);border:1px solid var(--border-2);background:var(--surface-2);border-radius:999px;padding:4px 12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .user-chip::before{content:"◉";color:var(--accent);font-size:10px}
 
-        /* === MAIN CONTENT === */
-        .main{flex:1;overflow-y:auto;padding:28px 24px}
-        .main::-webkit-scrollbar{width:5px}
-        .main::-webkit-scrollbar-thumb{background:var(--border-1);border-radius:8px}
-        .panel{max-width:680px;margin:0 auto}
-
-        /* === CARDS === */
-        .card{
-            background:var(--surface-2);border:1px solid var(--border-1);
-            border-radius:14px;padding:24px;margin-bottom:16px;
+        .switch{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-1);cursor:pointer;user-select:none}
+        .switch input{display:none}
+        .knob{
+            width:32px;height:18px;border-radius:999px;background:var(--surface-4);
+            border:1px solid var(--border-2);position:relative;transition:.2s;
         }
-        .card-title{font-size:.85rem;font-weight:600;margin-bottom:4px}
-        .card-sub{font-size:.78rem;color:var(--text-2);margin-bottom:20px}
-
-        /* === FORM FIELDS === */
-        .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-        .field-grid.single{grid-template-columns:1fr}
-        .field{display:flex;flex-direction:column;gap:4px}
-        .field label{font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);font-weight:500}
-        .field input,.field select{
-            background:var(--surface-0);border:1px solid var(--border-1);
-            border-radius:8px;padding:9px 12px;font-size:.82rem;color:var(--text-0);
-            font-family:var(--font);transition:border-color .15s,box-shadow .15s;
-            appearance:none;
+        .knob::after{
+            content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;
+            background:var(--text-2);transition:.2s;
         }
-        .field input:focus,.field select:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px var(--indigo-glow)}
-        .field input::placeholder{color:var(--text-3)}
-        .field input.warn{border-color:var(--amber)!important;box-shadow:0 0 0 3px rgba(245,158,11,.12)!important}
-        .field input.error{border-color:var(--rose)!important;box-shadow:0 0 0 3px rgba(244,63,94,.12)!important}
-        .field-hint{font-size:.68rem;color:var(--text-3);margin-top:2px}
-        .field-hint.warn{color:var(--amber)}
-        .field-hint.error{color:var(--rose)}
+        .switch input:checked + .knob{background:var(--accent);border-color:var(--accent)}
+        .switch input:checked + .knob::after{left:16px;background:var(--accent-ink)}
+        .switch input:checked ~ span:last-child{color:var(--accent)}
 
-        /* === RESOURCE BADGE === */
-        .res-bar{
-            display:flex;align-items:center;gap:8px;
-            background:var(--surface-3);border-radius:8px;padding:10px 14px;
-            margin-bottom:20px;font-size:.78rem;
-        }
-        .res-dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);flex-shrink:0}
-        .res-text{color:var(--text-1);line-height:1.5;white-space:pre-line}
-
-        /* === BUTTONS === */
         .btn{
-            padding:10px 24px;border:none;border-radius:8px;
-            font-size:.82rem;font-weight:600;font-family:var(--font);
-            cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;
+            display:inline-flex;align-items:center;justify-content:center;gap:8px;
+            font-size:13px;font-weight:600;border-radius:var(--radius-sm);
+            padding:9px 16px;border:1px solid var(--border-2);
+            background:var(--surface-3);color:var(--text-0);
+            transition:.16s;white-space:nowrap;
         }
-        .btn-primary{background:var(--indigo);color:#fff}
-        .btn-primary:hover{background:var(--indigo-light);transform:translateY(-1px)}
-        .btn-primary:disabled{background:var(--surface-4);color:var(--text-3);cursor:not-allowed;transform:none}
-        .btn-ghost{background:transparent;color:var(--text-1);border:1px solid var(--border-2)}
-        .btn-ghost:hover{border-color:var(--border-2);color:var(--text-0)}
-        .btn-row{display:flex;gap:10px;margin-top:20px;align-items:center}
-
-        /* === SPINNER === */
-        .spinner{
-            width:16px;height:16px;border:2px solid rgba(255,255,255,.2);
-            border-top-color:#fff;border-radius:50%;
-            animation:spin .6s linear infinite;display:none;
+        .btn:hover{border-color:var(--border-3);background:var(--surface-4);transform:translateY(-1px)}
+        .btn:active{transform:translateY(0)}
+        .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+        .btn-accent{
+            background:var(--accent);
+            color:var(--accent-ink);border:none;font-weight:700;
+            box-shadow:0 2px 14px rgba(139,92,246,.4), 0 0 24px rgba(139,92,246,.35), 0 0 44px rgba(168,85,247,.35);
         }
-        .spinner.active{display:block}
+        .btn-accent:hover:not(:disabled){filter:brightness(1.06);border:none;transform:translateY(-1px)}
+        .btn-danger{border-color:rgba(255,107,107,.38);color:var(--danger);background:transparent}
+        .btn-danger:hover:not(:disabled){background:var(--danger-soft);border-color:rgba(255,107,107,.55)}
+        .btn-ghost{background:transparent;border-color:transparent;color:var(--text-1)}
+        .btn-ghost:hover{color:var(--text-0);background:var(--surface-3);border-color:transparent}
+        .btn-sm{padding:5px 11px;font-size:12px;border-radius:7px}
+        .btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
+        .btn-busy{position:relative;pointer-events:none;opacity:.75}
+        .btn-busy::after{
+            content:"";width:12px;height:12px;border-radius:50%;
+            border:2px solid rgba(255,255,255,.3);border-top-color:#fff;
+            animation:spin .7s linear infinite;
+        }
         @keyframes spin{to{transform:rotate(360deg)}}
 
-        /* === HOST SUMMARY === */
-        .summary-card{
-            background:var(--surface-3);border:1px solid var(--border-1);
-            border-radius:10px;padding:14px 16px;margin-bottom:20px;
-            font-size:.82rem;color:var(--text-1);line-height:1.9;
+        .layout{
+            display:grid;grid-template-columns:minmax(0,1fr) 400px;
+            gap:20px;padding:24px 24px 8px;max-width:1440px;margin:0 auto;align-items:start;
+            position:relative;z-index:1;
         }
-        .summary-card strong{color:var(--text-0);font-weight:600}
-        .summary-card .val{color:var(--emerald);font-family:var(--mono);font-size:.78rem}
-        .summary-card code{
-            background:var(--surface-4);border-radius:4px;
-            padding:1px 6px;font-family:var(--mono);font-size:.75rem;color:var(--indigo-light);
-        }
+        .col-main{display:flex;flex-direction:column;gap:20px;min-width:0}
+        .col-side{position:sticky;top:70px;display:flex;flex-direction:column;gap:20px;max-height:calc(100vh - 88px)}
 
-        /* === CIRCULAR PROGRESS === */
-        .progress-center{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:20px}
-        .ring-wrap{position:relative;width:130px;height:130px;flex-shrink:0}
+        .card{
+            background:linear-gradient(180deg,var(--surface-1),var(--surface-0));
+            border:1px solid var(--border-1);
+            border-radius:var(--radius);padding:20px;
+            box-shadow:0 1px 0 rgba(255,255,255,.02) inset;
+        }
+        .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+        .card-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:9px;font-family:var(--disp);letter-spacing:.1px}
+        .card-title .num{
+            width:24px;height:24px;border-radius:7px;display:grid;place-items:center;
+            font-size:11px;font-weight:700;font-family:var(--mono);background:var(--surface-4);color:var(--text-1);
+            border:1px solid var(--border-2);
+        }
+        .card-title .num.done{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 0 12px var(--glow)}
+        .card-title .num.active{background:var(--thinking-soft);color:var(--thinking);border-color:rgba(242,184,75,.45);animation:pulse 1.6s infinite}
+        @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(242,184,75,.35)}50%{box-shadow:0 0 0 6px rgba(242,184,75,0)}}
+        .hint{font-size:12px;color:var(--text-2);line-height:1.5}
+
+        .hero{padding:26px 24px 20px;position:relative;overflow:hidden}
+        .hero::after{
+            content:"";position:absolute;inset:0;pointer-events:none;
+            background:radial-gradient(520px 200px at 88% 0%, rgba(168,85,247,.10), transparent 65%);
+        }
+        .hero-kicker{
+            display:flex;align-items:center;gap:8px;
+            font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+            color:var(--accent);margin-bottom:12px;
+        }
+        .hero-kicker::before{content:"";width:26px;height:1px;background:var(--accent);opacity:.5}
+        .hero h1{font-size:32px;font-weight:700;letter-spacing:-.6px;line-height:1.12;font-family:var(--disp)}
+        .hero h1 .grad{color:var(--accent)}
+        .hero p{color:var(--text-1);margin-top:10px;max-width:640px;font-size:14px;line-height:1.6}
+        .nl-box{
+            position:relative;margin-top:20px;background:var(--surface-0);
+            border:1px solid var(--border-2);border-radius:10px;
+            padding:12px 14px;transition:.2s;
+        }
+        .nl-box::before,.nl-box::after{
+            content:"";position:absolute;width:14px;height:14px;pointer-events:none;
+        }
+        .nl-box::before{top:-1px;left:-1px;border-top:2px solid var(--accent);border-left:2px solid var(--accent);border-top-left-radius:10px;opacity:.7}
+        .nl-box::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--accent);border-right:2px solid var(--accent);border-bottom-right-radius:10px;opacity:.7}
+        .nl-box:focus-within{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-soft)}
+        .nl-prompt{display:flex;gap:10px;align-items:flex-start}
+        .prompt-caret{
+            font-family:var(--mono);color:var(--accent);font-size:15px;line-height:1.5;user-select:none;
+            text-shadow:0 0 12px rgba(168,85,247,.55);
+        }
+        .nl-box textarea{
+            flex:1;resize:none;background:transparent;border:none;outline:none;
+            font-size:14.5px;line-height:1.55;color:var(--text-0);min-height:44px;
+        }
+        .nl-box textarea::placeholder{color:var(--text-2)}
+        .nl-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;flex-wrap:wrap}
+        .chips{display:flex;gap:7px;flex-wrap:wrap}
+        .chip{
+            font-family:var(--mono);font-size:10.5px;padding:4px 10px;border-radius:6px;color:var(--text-1);
+            border:1px solid var(--border-2);background:var(--surface-2);transition:.15s;letter-spacing:.02em;
+        }
+        .chip:hover{color:var(--accent);border-color:var(--accent-border);background:var(--accent-soft)}
+        .parse-note{font-size:11px;color:var(--text-2);margin-top:10px;display:none;font-family:var(--mono)}
+        .parse-note.show{display:block;color:var(--accent)}
+
+        .rail{
+            display:flex;align-items:center;gap:10px;
+            padding:2px 2px 0;user-select:none;
+        }
+        .rail-step{
+            display:flex;align-items:center;gap:8px;
+            font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+            color:var(--text-2);transition:.2s;padding:4px 0;white-space:nowrap;
+        }
+        .rail-n{
+            width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+            border:1px solid var(--border-2);background:var(--surface-2);font-size:9.5px;transition:.2s;
+        }
+        .rail-step.done{color:var(--accent)}
+        .rail-step.done .rail-n{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:0 0 10px var(--glow)}
+        .rail-step.active{color:var(--thinking)}
+        .rail-step.active .rail-n{background:var(--thinking-soft);border-color:rgba(242,184,75,.5);color:var(--thinking);animation:pulse 1.6s infinite}
+        .rail-line{flex:1;height:1px;background:var(--border-2);transition:.3s;min-width:18px}
+        .rail-line.done{background:var(--accent);box-shadow:0 0 6px var(--glow)}
+
+        .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+        .field label{display:block;font-size:10px;font-weight:600;color:var(--text-1);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase;font-family:var(--mono)}
+        .field input,.field select{
+            width:100%;background:var(--surface-0);border:1px solid var(--border-2);
+            border-radius:var(--radius-sm);padding:9px 12px;font-size:13.5px;outline:none;transition:.15s;
+        }
+        .field input:hover,.field select:hover{border-color:var(--border-3)}
+        .field input:focus,.field select:focus{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-soft)}
+        .field select option{background:var(--surface-3)}
+        .field .unit-pos{position:relative}
+        .field .unit-pos input{padding-right:44px}
+        .field .unit-pos .unit{
+            position:absolute;right:12px;top:50%;transform:translateY(-50%);
+            font-size:10px;color:var(--text-2);font-family:var(--mono);letter-spacing:.05em;
+        }
+        .field-hint{font-size:11px;color:var(--text-2);margin-top:4px}
+        .form-actions{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+
+        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+        .stat{
+            background:var(--surface-2);border:1px solid var(--border-1);
+            border-radius:var(--radius-sm);padding:12px 14px;
+        }
+        .stat .k{font-size:9.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.1em;font-weight:600;font-family:var(--mono)}
+        .stat .v{font-size:20px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums;font-family:var(--disp)}
+        .stat .v small{font-size:11px;color:var(--text-2);font-weight:500;font-family:var(--sans)}
+        .meter{height:4px;border-radius:999px;background:var(--surface-4);margin-top:10px;overflow:hidden}
+        .meter > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#7c3aed,#c084fc);transition:width .6s ease;box-shadow:0 0 8px rgba(168,85,247,.5)}
+
+        .build-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+        .ring-wrap{position:relative;width:120px;height:120px;flex-shrink:0}
         .ring-wrap svg{transform:rotate(-90deg)}
         .ring-bg{fill:none;stroke:var(--surface-4);stroke-width:8}
-        .ring-fill{fill:none;stroke:url(#ringGrad);stroke-width:8;stroke-linecap:round;
-            stroke-dasharray:339.3;stroke-dashoffset:339.3;
-            transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1)}
-        .ring-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-        .ring-pct{font-size:1.5rem;font-weight:700;color:var(--text-0);line-height:1}
-        .ring-steps{font-size:.68rem;color:var(--text-2);font-family:var(--mono)}
-        .eta-line{font-size:.78rem;color:var(--text-2);display:flex;align-items:center;gap:6px}
-        .eta-line svg{width:14px;height:14px;color:var(--amber);flex-shrink:0}
-        .eta-val{color:var(--amber);font-weight:500}
+        .ring-fill{
+            fill:none;stroke:url(#ringGrad);stroke-width:8;stroke-linecap:round;
+            transition:stroke-dashoffset .5s ease;
+            filter:drop-shadow(0 0 6px rgba(168,85,247,.65));
+        }
+        .ring-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+        .ring-pct{font-size:22px;font-weight:800}
+        .ring-label{font-size:9px;color:var(--text-2);text-transform:uppercase;letter-spacing:1px;margin-top:-2px}
 
-        /* === TOOL LOG === */
-        .tool-log{display:flex;flex-direction:column;gap:3px;margin-top:12px}
-        .tool-item{display:flex;align-items:center;gap:8px;font-size:.75rem;font-family:var(--mono);color:var(--text-2);padding:3px 0}
-        .tool-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-        .tool-dot.pending{background:var(--surface-4);border:1px solid var(--text-3)}
-        .tool-dot.done{background:var(--emerald)}
-        .tool-dot.fail{background:var(--rose)}
-        .tool-dot.running{background:var(--indigo);animation:beat .55s ease-in-out infinite}
-        @keyframes beat{
-            0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(99,102,241,.5)}
-            50%{transform:scale(1.5);box-shadow:0 0 0 5px rgba(99,102,241,0)}
+        .builds-list-wrap{margin-top:16px;border-top:1px solid var(--border-1);padding-top:14px}
+        .builds-list{display:flex;flex-direction:column;gap:8px}
+        .build-item{
+            border:1px solid var(--border-2);border-radius:var(--radius-sm);background:var(--surface-1);
+            padding:10px 12px;transition:border-color .15s,box-shadow .15s;
         }
+        .build-item.focused{border-color:var(--accent-border);box-shadow:0 0 0 1px var(--accent-soft), 0 0 14px rgba(139,92,246,.15)}
+        .build-item-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+        .build-item-name{font-weight:700;font-family:var(--mono);font-size:12.5px;cursor:pointer}
+        .build-item-name:hover{color:var(--accent)}
+        .b-host{font-size:10px;color:var(--text-2);font-family:var(--mono);padding:1px 6px;border:1px solid var(--border-1);border-radius:5px;background:var(--surface-2);letter-spacing:.02em}
+        .build-item .spacer{flex:1}
+        .build-progress{flex:1;min-width:120px;height:4px;border-radius:999px;background:var(--surface-4);overflow:hidden;max-width:200px}
+        .build-progress i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#7c3aed,#c084fc);transition:width .4s ease;box-shadow:0 0 8px rgba(168,85,247,.5)}
+        .build-log-toggle{font-size:11px}
+        .build-log{
+            display:none;margin-top:10px;max-height:180px;overflow:auto;background:var(--surface-0);
+            border:1px solid var(--border-1);border-radius:var(--radius-sm);padding:8px 10px;
+            font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--text-1);white-space:pre-wrap;word-break:break-word;
+        }
+        .build-log.open{display:block}
+        .builds-empty{color:var(--text-2);font-size:12px;margin-top:10px}
+        .build-item.done{border-color:var(--border-2);opacity:.85}
+        .console-focus{font-size:10px;color:var(--text-2);font-family:var(--mono);letter-spacing:.04em;margin-top:2px;display:none}
+        .console-focus.show{display:block}
+        .result-area{margin-top:16px;display:none}
+        .result-area.show{display:block}
+        .result-box{
+            background:var(--accent-soft);border:1px solid var(--accent-border);
+            border-radius:var(--radius-sm);padding:14px 16px;
+        }
+        .result-box .vm-name{font-size:16px;font-weight:700;color:var(--accent)}
+        .result-box .vm-meta{font-size:12.5px;color:var(--text-1);margin-top:4px;display:flex;flex-wrap:wrap;gap:6px 18px}
 
-        /* === LIVE LOG PANEL === */
-        .live-log{
-            margin-top:16px;background:var(--surface-0);border:1px solid var(--border-1);
-            border-radius:8px;padding:12px;max-height:280px;overflow-y:auto;
-            font-family:var(--mono);font-size:.72rem;line-height:1.5;color:var(--text-1);
-            white-space:pre-wrap;word-break:break-word;
-        }
-        .live-log::-webkit-scrollbar{width:6px}
-        .live-log::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:8px}
-        .live-log-header{
-            display:flex;align-items:center;justify-content:space-between;
-            margin-top:12px;margin-bottom:6px;font-size:.72rem;color:var(--text-2);
-        }
-        .live-log-header .dot{width:6px;height:6px;border-radius:50%;background:var(--emerald);animation:beat 1s ease-in-out infinite;display:inline-block;margin-right:4px}
-        .live-log-line{padding:1px 0}
-        .live-log-line.err{color:var(--rose)}
-        .live-log-line.warn{color:var(--amber)}
-        .live-log-line.ok{color:var(--emerald)}
+        .console-card{display:flex;flex-direction:column;flex:1;min-height:0;padding:16px}
+        .console-state{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text-2)}
+        .console-state.run{color:var(--accent)}
+        .console-state.think{color:var(--thinking)}
+        .console-state.err{color:var(--danger)}
+        .console-scroll{overflow-y:auto;flex:1;min-height:200px;max-height:calc(100vh - 220px);padding-right:4px}
+        .console-scroll::-webkit-scrollbar{width:6px}
+        .console-scroll::-webkit-scrollbar-thumb{background:var(--surface-4);border-radius:3px}
 
-        /* === TEMPLATE PICKER === */
-        .template-picker{
-            display:flex;gap:8px;align-items:center;margin-bottom:16px;
-            padding:10px 14px;background:var(--surface-3);border-radius:10px;border:1px solid var(--border-1);
+        .stream-empty{
+            padding:34px 12px;text-align:center;color:var(--text-2);font-size:12.5px;
+            border:1px dashed var(--border-2);border-radius:var(--radius-sm);margin-top:12px;
         }
-        .template-picker label{font-size:.7rem;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em}
-        .template-picker select{
-            flex:1;background:var(--surface-0);border:1px solid var(--border-1);
-            border-radius:6px;padding:6px 10px;font-size:.78rem;color:var(--text-0);
-            font-family:var(--font);
+        .agent-card{
+            margin-top:12px;border:1px solid var(--border-1);border-radius:var(--radius-sm);
+            background:var(--surface-2);overflow:hidden;
         }
+        .agent-card .ac-head{display:flex;align-items:center;gap:9px;padding:10px 12px;font-size:12.5px;font-weight:600}
+        .agent-card .ac-body{padding:0 12px 11px;font-size:12px;color:var(--text-1)}
+        .agent-card .ac-body pre{
+            font-family:var(--mono);font-size:11px;background:var(--surface-1);
+            border:1px solid var(--border-1);border-radius:7px;padding:9px 11px;
+            margin-top:8px;white-space:pre-wrap;word-break:break-word;color:var(--text-1);
+        }
+        .agent-card.thinking{border-color:rgba(251,191,36,.35);background:var(--thinking-soft)}
+        .agent-card.thinking .ac-head{color:var(--thinking)}
+        .agent-card.ok{border-color:rgba(52,211,153,.3)}
+        .agent-card.ok .ac-head{color:var(--accent)}
+        .agent-card.err{border-color:rgba(248,113,113,.4);background:var(--danger-soft)}
+        .agent-card.err .ac-head{color:var(--danger)}
+        .agent-card.retry{border-color:rgba(251,191,36,.4)}
+        .agent-card.retry .ac-head{color:var(--thinking)}
+        .agent-card.info{border-color:rgba(167,139,250,.35)}
+        .agent-card.info .ac-head{color:var(--info)}
+        .connected-line{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text-1);padding:10px 12px;border:1px solid var(--border-2);border-radius:10px;background:var(--surface-2)}
+        .connected-line .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0;box-shadow:0 0 8px rgba(168,85,247,.7)}
+        .agent-card .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+        .agent-card .dot.d-spin{border:2px solid rgba(251,191,36,.25);border-top-color:var(--thinking);animation:spin .8s linear infinite;background:none}
+        .agent-card .dot.d-ok{background:var(--accent)}
+        .agent-card .dot.d-err{background:var(--danger)}
+        .agent-card .dot.d-think{background:var(--thinking)}
+        .agent-card .dot.d-info{background:var(--info)}
+        .ac-meta{margin-left:auto;font-size:10.5px;color:var(--text-2);font-family:var(--mono)}
 
-        /* === HEALTH DASHBOARD === */
-        .health-panel{
-            margin-top:12px;padding:14px;background:var(--surface-3);
-            border:1px solid var(--border-1);border-radius:10px;
-            display:none;
+        .timeline{margin-top:14px}
+        .tl-step{display:flex;gap:11px;position:relative;padding-bottom:14px}
+        .tl-step:last-child{padding-bottom:4px}
+        .tl-step::before{
+            content:"";position:absolute;left:7px;top:18px;bottom:2px;width:2px;background:var(--border-2);
         }
-        .health-panel.active{display:block}
-        .health-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-        .health-item{background:var(--surface-0);padding:10px 12px;border-radius:8px;border:1px solid var(--border-1)}
-        .health-item .label{font-size:.62rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em}
-        .health-item .value{font-size:.9rem;color:var(--text-0);font-weight:600;margin-top:4px;font-family:var(--mono)}
-        .health-status{
-            display:inline-flex;align-items:center;gap:6px;
-            font-size:.72rem;padding:3px 10px;border-radius:100px;
+        .tl-step:last-child::before{display:none}
+        .tl-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0;position:relative;z-index:1;background:var(--surface-4);border:2px solid var(--border-2);margin-top:2px}
+        .tl-step.done .tl-dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 8px var(--glow)}
+        .tl-step.done::before{background:rgba(52,211,153,.35)}
+        .tl-step.active .tl-dot{background:var(--thinking);border-color:var(--thinking);animation:pulse 1.4s infinite}
+        .tl-step.failed .tl-dot{background:var(--danger);border-color:var(--danger)}
+        .tl-step.cancelled .tl-dot{background:var(--text-2);border-color:var(--text-2)}
+        .tl-body{min-width:0}
+        .tl-tool{font-size:12.5px;font-weight:600;font-family:var(--mono);color:var(--text-1)}
+        .tl-step.active .tl-tool{color:var(--thinking)}
+        .tl-step.done .tl-tool{color:var(--accent)}
+        .tl-sub{font-size:11px;color:var(--text-2);margin-top:2px}
+        .tl-narr{
+            font-size:11.5px;color:var(--text-1);background:var(--surface-2);
+            border:1px solid var(--border-1);border-radius:7px;padding:7px 10px;margin-top:6px;
+            display:none;white-space:pre-wrap;word-break:break-word;
         }
-        .health-status.ok{background:var(--emerald-glow);color:var(--emerald)}
-        .health-status.bad{background:rgba(244,63,94,.1);color:var(--rose)}
+        .tl-step.done .tl-narr{display:block}
+        .tl-step .tl-bar{height:3px;border-radius:3px;background:var(--surface-4);margin-top:6px;overflow:hidden}
+        .tl-step .tl-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .5s}
+        .tl-step.active .tl-bar i{background:var(--thinking)}
 
-
-        /* === RESULT CARD === */
-        .result-card{
-            background:var(--surface-2);border:1px solid var(--emerald);
-            border-radius:12px;padding:20px;
+        .table-wrap{overflow-x:auto;border:1px solid var(--border-1);border-radius:var(--radius-sm)}
+        table{width:100%;border-collapse:collapse;font-size:12.5px}
+        thead th{
+            text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;
+            color:var(--text-2);font-weight:600;padding:10px 14px;background:var(--surface-2);
+            border-bottom:1px solid var(--border-1);white-space:nowrap;
         }
-        .result-card h3{font-size:.9rem;font-weight:600;color:var(--emerald);margin-bottom:12px}
-        .result-card .pre-wrap{position:relative}
-        .result-card pre{
-            font-family:var(--mono);font-size:.78rem;
-            background:var(--surface-0);border:1px solid var(--border-1);
-            padding:12px 40px 12px 12px;border-radius:8px;color:var(--text-1);line-height:1.6;
-        }
-        .copy-btn{
-            position:absolute;top:8px;right:8px;
-            width:26px;height:26px;border-radius:6px;border:none;
-            background:var(--surface-3);color:var(--text-2);
-            cursor:pointer;display:grid;place-items:center;
-            transition:all .15s;
-        }
-        .copy-btn:hover{background:var(--surface-4);color:var(--text-0)}
-        .copy-btn svg{width:13px;height:13px}
-        .copy-btn.copied{background:var(--emerald-glow);color:var(--emerald)}
+        tbody td{padding:10px 14px;border-bottom:1px solid var(--border-1);vertical-align:middle;white-space:nowrap}
+        tbody tr:last-child td{border-bottom:none}
+        tbody tr:hover{background:var(--surface-2)}
+        .vm-name-cell{font-weight:600;font-family:var(--mono);font-size:12.5px;color:var(--text-0)}
+        .state-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px}
+        .state-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+        .state-running{color:var(--accent);background:var(--accent-soft)}
+        .state-shut{color:var(--text-2);background:rgba(148,163,184,.08)}
+        .state-unknown{color:var(--thinking);background:var(--thinking-soft)}
+        .cell-actions{display:flex;gap:6px}
+        .vm-ip{font-family:var(--mono);font-size:11.5px;color:var(--text-1)}
+        .vm-empty{padding:26px;text-align:center;color:var(--text-2);font-size:12.5px}
+        .check{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
 
-        /* === ERROR === */
-        .error-msg{
-            background:rgba(244,63,94,.08);border:1px solid var(--rose);
-            border-radius:8px;padding:12px 14px;font-size:.8rem;color:var(--rose);
-            margin-top:12px;
+        .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+        .modal.show{display:flex}
+        .modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(3px)}
+        .modal-box{
+            position:relative;width:min(760px,100%);max-height:82vh;display:flex;flex-direction:column;
+            background:var(--surface-1);border:1px solid var(--border-2);border-radius:var(--radius);
+            box-shadow:0 24px 70px rgba(0,0,0,.55);
         }
+        .modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border-1)}
+        .modal-head .t{font-weight:700;font-size:14px}
+        .modal-close{font-size:18px;color:var(--text-2);line-height:1}
+        .modal-close:hover{color:var(--text-0)}
+        .modal-body{overflow:auto;padding:14px 18px;flex:1;min-height:0}
+        .log-lines{font-family:var(--mono);font-size:11.5px;line-height:1.7;color:var(--text-1);white-space:pre-wrap;word-break:break-word}
+        .log-lines .l-ok{color:var(--accent)}
 
-        /* === SECTION VISIBILITY === */
-        .section{display:none}
-        .section.active{display:block}
+        /* ── login screen ─────────────────────────────── */
+        .login-overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:24px}
+        .login-overlay.hidden{display:none}
+        .login-card{width:100%;max-width:400px;background:var(--surface-1);border:1px solid var(--border-2);border-radius:var(--radius);padding:36px 32px;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+        .login-brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+        .login-brand .brand-mark{width:40px;height:40px;font-size:15px;border-radius:10px}
+        .login-title{font-size:20px;font-weight:700;font-family:var(--disp);letter-spacing:-.2px}
+        .login-sub{font-size:13px;color:var(--text-1);margin:8px 0 24px;line-height:1.6}
+        .login-field label{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-1);margin-bottom:6px}
+        .login-field input{width:100%;padding:10px 12px;background:var(--surface-0);border:1px solid var(--border-2);border-radius:var(--radius-sm);color:var(--text-0);font-size:14px;outline:none;transition:border-color .15s,box-shadow .15s}
+        .login-field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+        .login-btn{width:100%;margin-top:18px;padding:11px;background:var(--accent);color:var(--accent-ink);border:none;border-radius:var(--radius-sm);font-weight:600;font-size:14px;transition:filter .15s;box-shadow:0 0 18px rgba(139,92,246,.35)}
+        .login-btn:hover:not(:disabled){filter:brightness(1.08)}
+        .login-btn:disabled{opacity:.6;cursor:not-allowed}
+        .login-error{color:var(--danger);font-size:13px;margin-top:12px;min-height:18px}
+        .login-note{margin-top:14px;font-size:12px;color:var(--text-2);line-height:1.5}
+        .login-foot{margin-top:18px;padding-top:16px;border-top:1px solid var(--border-1);font-size:11px;color:var(--text-2);font-family:var(--mono);letter-spacing:.04em}
+        .log-lines .l-err{color:var(--danger)}
+        .log-lines .l-warn{color:var(--thinking)}
 
-        @media(max-width:600px){
-            .field-grid{grid-template-columns:1fr}
-            .main{padding:16px}
-            .stepper{padding:10px 16px}
+        .health-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        .health-note{font-size:12px;color:var(--text-2);margin-top:10px}
+
+        .muted{color:var(--text-2);font-size:12px}
+        .mono{font-family:var(--mono)}
+        .spacer{flex:1}
+        .error-text{color:var(--danger);font-size:12.5px;margin-top:8px;display:none}
+        .error-text.show{display:block}
+        .section-below{max-width:1440px;margin:0 auto;padding:0 24px 28px;display:flex;flex-direction:column;gap:20px}
+        .footer{max-width:1440px;margin:0 auto;padding:0 24px 30px;color:var(--text-2);font-size:11.5px;display:flex;gap:18px;flex-wrap:wrap}
+
+        @media (max-width:1150px){
+            .layout{grid-template-columns:1fr}
+            .col-side{position:static;max-height:none}
+            .console-scroll{max-height:420px}
+        }
+        @media (max-width:720px){
+            .grid2,.grid3{grid-template-columns:1fr}
+            .health-grid{grid-template-columns:1fr}
+            .topbar{padding:10px 14px;flex-wrap:wrap}
+            .hero h1{font-size:24px}
+            .layout{padding:16px}
         }
     </style>
 </head>
 <body>
-<div class="app">
-
-    <!-- HEADER -->
-    <div class="header">
-        <div class="header-left">
-            <div class="logo-mark">V</div>
-            <h1>VM Agent<span>Provisioning Console</span></h1>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-            <div class="badge {{ 'badge-live' if not dry_run else 'badge-dry' }}">{{ "LIVE" if not dry_run else "DRY RUN" }}</div>
-            <div class="badge" id="agentBadge" style="display:none;background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid #7c3aed">🤖 AGENT</div>
-        </div>
-    </div>
-
-    <!-- STEPPER -->
-    <div class="stepper">
-        <div class="step active" id="step1">
-            <div class="step-num">1</div>
-            <span>Connect Host</span>
-        </div>
-        <div class="step-divider"></div>
-        <div class="step" id="step2">
-            <div class="step-num">2</div>
-            <span>Configure VM</span>
-        </div>
-        <div class="step-divider"></div>
-        <div class="step" id="step3">
-            <div class="step-num">3</div>
-            <span>Build</span>
-        </div>
-    </div>
-
-    <!-- MAIN -->
-    <div class="main">
-        <div class="panel">
-
-            <!-- ── SECTION 1: CONNECT ── -->
-            <div class="section active" id="sec1">
-                <div class="card">
-                    <div class="card-title">Connect to KVM Host</div>
-                    <div class="card-sub">Enter the remote host details to establish an SSH connection.</div>
-                    <div class="field-grid">
-                        <div class="field" style="grid-column:1/-1">
-                            <label>Host IP / Hostname</label>
-                            <input type="text" id="hostIp" placeholder="192.168.1.100" autocomplete="off">
-                        </div>
-                        <div class="field">
-                            <label>Username</label>
-                            <input type="text" id="hostUser" placeholder="ubuntu" value="ubuntu">
-                        </div>
-                        <div class="field">
-                            <label>Password</label>
-                            <input type="password" id="hostPass" placeholder="••••••••">
-                        </div>
-                    </div>
-                    <div class="btn-row">
-                        <button class="btn btn-primary" id="connectBtn" onclick="doConnect()">
-                            <span>Connect</span>
-                            <div class="spinner" id="connectSpinner"></div>
-                        </button>
-                    </div>
-                    <div id="connectError"></div>
-                </div>
+    <div class="login-overlay{% if authed %} hidden{% endif %}" id="loginOverlay">
+        <div class="login-card">
+            <div class="login-brand">
+                <div class="brand-mark">◆</div>
+                <div class="login-title">VM Agent</div>
             </div>
+            <div class="login-sub">Enter your KVM server credentials to connect. The console unlocks once the connection is established.</div>
+            <div class="login-field">
+                <label>Server IP</label>
+                <input id="loginHost" placeholder="10.x.x.x" autocomplete="off">
+            </div>
+            <div class="login-field">
+                <label>Server username</label>
+                <input id="loginUser" placeholder="root / ubuntu" autocomplete="username">
+            </div>
+            <div class="login-field">
+                <label>Server password</label>
+                <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <button class="login-btn" id="loginBtn">Connect</button>
+            <div class="login-error" id="loginError"></div>
+            <div class="login-note" id="loginNote">{% if dry_run %}Demo mode: the server is simulated, so any server IP / username / password is accepted.{% else %}Sign in with the SSH credentials of your KVM server.{% endif %}</div>
+            <div class="login-foot">VM Agent · AI provisioning console</div>
+        </div>
+    </div>
 
-            <!-- ── SECTION 2: CONFIGURE ── -->
-            <div class="section" id="sec2">
-                <!-- Host summary -->
-                <div class="summary-card" id="hostSummary"></div>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-mark">◆</div>
+            <div>
+                <div class="brand-name">VM Agent</div>
+                <div class="brand-sub">AI provisioning console · KVM</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            {% if dry_run %}<span class="badge badge-amber">● Dry run — simulated</span>{% endif %}
+            <label class="switch">
+                <input type="checkbox" id="agentModeToggle">
+                <span class="knob"></span>
+                <span>Agent mode</span>
+            </label>
+            <button class="btn btn-ghost btn-sm" id="liveLogBtn">Live log <span class="badge badge-gray" id="liveLogCount" style="display:none">0</span></button>
+            <button class="btn btn-ghost btn-sm" id="resetBtn" title="Reset session">Reset</button>
+            <span class="user-chip" id="userLabel"{% if not authed %} style="display:none"{% endif %}>{{ username or '' }}{% if authed and host_ip %}@{{ host_ip }}{% endif %}</span>
+            <button class="btn btn-ghost btn-sm" id="logoutBtn" title="Disconnect from server">Disconnect</button>
+        </div>
+    </header>
 
-                <!-- Existing VMs management -->
-                <div class="card" id="vmListCard" style="display:none">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-                        <div class="card-title" style="margin-bottom:0">Existing VMs</div>
-                        <div style="display:flex;gap:6px">
-                            <button class="btn btn-ghost" style="padding:5px 12px;font-size:.7rem" onclick="showHealth()">◈ Health</button>
-                            <button class="btn btn-ghost" style="padding:5px 12px;font-size:.7rem" onclick="loadVmList()">↻ Refresh</button>
+    <main class="layout">
+        <div class="col-main">
+            <section class="card hero">
+                <h1>Provision a VM. <span class="grad">Just describe it.</span></h1>
+                <p>VM Agent plans the build, decides each step with Claude, and provisions the VM on your KVM host — from host resources to AIC card passthrough.</p>
+                <div class="nl-box">
+                    <textarea id="nlInput" rows="2" placeholder="e.g. &quot;build a 32 GB 4-core VM named test01 with 2 AIC cards&quot; — press Enter or click Parse."></textarea>
+                    <div class="nl-actions">
+                        <div class="chips" id="chips">
+                            <button class="chip" data-sample="build a 32 GB 8-core VM named test01 with 4 AIC cards">4× AIC cards, 32 GB</button>
+                            <button class="chip" data-sample="create a 16 GB 4-core VM called devbox with 100 GB disk">Dev box · 100 GB</button>
+                            <button class="chip" data-sample="make a P2P VM with 2 cards">P2P VM</button>
+                            <button class="chip" data-sample="provision a 64 GB quad-core VM for ML with 200 GB disk">ML box · 64 GB</button>
                         </div>
+                        <button class="btn btn-accent" id="parseBtn">Parse request →</button>
                     </div>
-                    <div id="vmListBody" style="font-size:.78rem;color:var(--text-2)">Loading...</div>
-                    <div class="health-panel" id="healthPanel"></div>
+                    <div class="parse-note" id="parseNote"></div>
                 </div>
+            </section>
 
-                <div class="card">
-                    <div class="card-title">VM Configuration</div>
-                    <div class="card-sub">Fill in the VM details. Resource limits are based on the connected host.</div>
+            <section class="card" id="sec1">
+                <div class="card-head">
+                    <div class="card-title"><span class="num" id="n1">1</span> KVM host</div>
+                    <span class="badge badge-gray" id="connBadge">not connected</span>
+                </div>
+                <div id="hostConnected" style="display:none">
+                    <div class="connected-line"><span class="dot"></span> Connected to <b id="connHostLabel">—</b>
+                        <button class="btn btn-ghost btn-sm" id="switchHostBtn" style="margin-left:auto">Switch server</button>
+                    </div>
+                    <div id="hostSummary" style="display:none;margin-top:12px">
+                        <div class="stats" id="hostStats"></div>
+                        <div class="hint" style="margin-top:8px">Resource limits are auto-capped from these values when you build.</div>
+                    </div>
+                </div>
+                <div id="connectForm">
+                    <div class="grid2">
+                        <div class="field"><label>Host IP</label><input id="hostIp" placeholder="10.x.x.x" autocomplete="off"></div>
+                        <div class="field"><label>SSH user</label><input id="hostUser" placeholder="root / ubuntu" autocomplete="off"></div>
+                        <div class="field" style="grid-column:1/-1"><label>SSH password</label><input id="hostPass" type="password" placeholder="••••••••" autocomplete="off"></div>
+                    </div>
+                    <div class="error-text" id="connectError"></div>
+                    <div class="form-actions">
+                        <button class="btn btn-accent" id="connectBtn">Connect &amp; scan host</button>
+                        <span class="muted" id="connectStatus"></span>
+                    </div>
+                </div>
+            </section>
 
-                    <!-- Template picker -->
-                    <div class="template-picker">
-                        <label>Preset:</label>
-                        <select id="templateSelect" onchange="applyTemplate()">
-                            <option value="">— Custom (fill fields manually) —</option>
+            <section class="card" id="sec2">
+                <div class="card-head">
+                    <div class="card-title"><span class="num" id="n2">2</span> Configure VM</div>
+                    <span class="badge badge-gray" id="configBadge">draft</span>
+                </div>
+                <div class="field" style="margin-bottom:14px">
+                    <label>Template preset</label>
+                    <select id="templateSelect"><option value="">— custom configuration —</option></select>
+                </div>
+                <div class="grid3">
+                    <div class="field"><label>VM name</label><input id="vmName" placeholder="test01"></div>
+                    <div class="field"><label>OS image path</label><input id="osImage" value="/home/vm_images/ubuntu-24.04.3-live-server-amd64.iso"></div>
+                    <div class="field"><label>VM type</label>
+                        <select id="vmType">
+                            <option value="normal">Normal</option>
+                            <option value="p2p">P2P (ACS override)</option>
                         </select>
                     </div>
-
-                    <div class="field-grid">
-                        <div class="field" style="grid-column:1/-1">
-                            <label>VM Name</label>
-                            <input type="text" id="vmName" placeholder="gb70_ubuntu_vm01" autocomplete="off" oninput="validateVmName(this)">
-                            <div class="field-hint" id="vmNameHint"></div>
-                        </div>
-
-                        <div class="field">
-                            <label>Memory (GB)</label>
-                            <input type="number" id="memGb" placeholder="32" min="1" oninput="validateResource(this,'ram_free_gb','GB RAM')">
-                            <div class="field-hint" id="memHint"></div>
-                        </div>
-
-                        <div class="field">
-                            <label>CPUs</label>
-                            <input type="number" id="numCpu" placeholder="4" min="1" oninput="validateResource(this,'cpu_count','CPUs')">
-                            <div class="field-hint" id="cpuHint"></div>
-                        </div>
-
-                        <div class="field">
-                            <label>Disk Size</label>
-                            <input type="text" id="diskSize" placeholder="100G" oninput="validateDisk(this)">
-                            <div class="field-hint" id="diskHint">Enter size with unit (e.g. 100G). Plain numbers auto-get G appended.</div>
-                        </div>
-
-                        <div class="field">
-                            <label>AIC Cards <span style="color:var(--text-3);font-weight:400;text-transform:none;font-size:.65rem">(optional)</span></label>
-                            <input type="number" id="aicCards" placeholder="0 = attach all found" min="0">
-                            <div class="field-hint">Leave blank to attach all Qualcomm cards found via lspci</div>
-                        </div>
-
-                        <div class="field">
-                            <label>VM Type</label>
-                            <select id="vmType" onchange="toggleAcs()">
-                                <option value="normal">normal</option>
-                                <option value="p2p">p2p</option>
-                            </select>
-                        </div>
-
-                        <div class="field" style="grid-column:1/-1">
-                            <label>OS Image Path</label>
-                            <input type="text" id="osImage" value="/home/vm_images/ubuntu-24.04.3-live-server-amd64.iso">
-                            <div class="field-hint">Default Ubuntu 24.04 LTS. Change if using a different ISO.</div>
-                        </div>
-
-                        <div class="field">
-                            <label>VM Username</label>
-                            <input type="text" id="vmUser" value="ubuntu">
-                        </div>
-
-                        <div class="field">
-                            <label>VM Password</label>
-                            <input type="password" id="vmPass" placeholder="••••••••">
-                        </div>
-
-                        <div class="field" id="acsField" style="display:none">
-                            <label>ACS State (p2p only)</label>
-                            <select id="acsState">
-                                <option value="enable">enable</option>
-                                <option value="disable">disable</option>
-                            </select>
-                        </div>
-
-                        <div class="field">
-                            <label>Debug</label>
-                            <select id="debugMode">
-                                <option value="enable">enable</option>
-                                <option value="disable">disable</option>
-                            </select>
-                        </div>
+                    <div class="field"><label>Memory (GB)</label><input id="memGb" type="number" min="1" placeholder="32"></div>
+                    <div class="field"><label>vCPUs</label><input id="numCpu" type="number" min="1" placeholder="4"></div>
+                    <div class="field"><label>Disk size</label>
+                        <div class="unit-pos"><input id="diskSize" placeholder="100G"><span class="unit">GB</span></div>
                     </div>
-
-                    <!-- Agent Mode toggle -->
-                    <div style="display:flex;align-items:center;gap:12px;margin-top:16px;padding:12px 14px;background:var(--surface-3);border-radius:10px;border:1px solid var(--border-1)">
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1">
-                            <div style="position:relative;width:40px;height:22px;flex-shrink:0">
-                                <input type="checkbox" id="agentModeToggle" onchange="toggleAgentMode()" style="opacity:0;width:0;height:0;position:absolute">
-                                <span id="agentModeSlider" style="
-                                    position:absolute;inset:0;border-radius:100px;
-                                    background:var(--surface-4);border:1px solid var(--border-2);
-                                    transition:all .2s;cursor:pointer;
-                                "></span>
-                                <span id="agentModeKnob" style="
-                                    position:absolute;top:3px;left:3px;
-                                    width:14px;height:14px;border-radius:50%;
-                                    background:var(--text-3);transition:all .2s;
-                                "></span>
-                            </div>
-                            <div>
-                                <div style="font-size:.82rem;font-weight:600;color:var(--text-0)">🤖 Agent Mode</div>
-                                <div style="font-size:.68rem;color:var(--text-3);margin-top:1px">Claude decides each step dynamically (Phase 2)</div>
-                            </div>
-                        </label>
-                        <div id="agentModeStatus" style="font-size:.68rem;color:var(--text-3);text-align:right">Classic</div>
-                    </div>
-
-                    <div class="btn-row">
-                        <button class="btn btn-primary" id="buildBtn" onclick="doExecute()">
-                            Start Building
-                        </button>
-                        <button class="btn btn-ghost" onclick="doReset()">Disconnect</button>
-                    </div>
-                    <div id="formError"></div>
+                    <div class="field"><label>AIC cards</label><input id="aicCards" type="number" min="0" placeholder="0"></div>
+                    <div class="field"><label>VM username</label><input id="vmUser" placeholder="ubuntu"></div>
+                    <div class="field"><label>VM password</label><input id="vmPass" type="password" placeholder="optional"></div>
                 </div>
-            </div>
-
-            <!-- ── SECTION 3: PROGRESS ── -->
-            <div class="section" id="sec3">
-                <div class="card">
-                    <div class="card-title" id="buildTitle">Building VM...</div>
-                    <div class="card-sub" id="buildSub">Tools are executing on the remote host.</div>
-
-                    <!-- Circular progress ring -->
-                    <div class="progress-center">
-                        <div class="ring-wrap">
-                            <svg width="130" height="130" viewBox="0 0 130 130">
-                                <defs>
-                                    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" style="stop-color:#6366f1"/>
-                                        <stop offset="100%" style="stop-color:#10b981"/>
-                                    </linearGradient>
-                                </defs>
-                                <circle class="ring-bg" cx="65" cy="65" r="54"/>
-                                <circle class="ring-fill" id="ringFill" cx="65" cy="65" r="54"/>
-                            </svg>
-                            <div class="ring-text">
-                                <div class="ring-pct" id="ringPct">0%</div>
-                                <div class="ring-steps" id="ringSteps">0 / 0</div>
-                            </div>
-                        </div>
-                        <div class="eta-line">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            <span>Estimated time remaining: <span class="eta-val" id="etaVal">calculating...</span></span>
-                        </div>
+                <div class="grid2" style="margin-top:14px">
+                    <div class="field" id="acsField" style="display:none">
+                        <label>ACS state</label>
+                        <select id="acsState">
+                            <option value="disable">disable (default)</option>
+                            <option value="enable">enable</option>
+                        </select>
                     </div>
-
-                    <div class="tool-log" id="tLog"></div>
+                    <div class="field"><label>Debug</label>
+                        <select id="debugMode">
+                            <option value="enable">enable</option>
+                            <option value="disable">disable</option>
+                        </select>
+                    </div>
                 </div>
+                <div class="error-text" id="formError"></div>
+                <div class="form-actions">
+                    <button class="btn" id="previewBtn">Preview PCI assignment</button>
+                    <span class="muted" id="previewStatus"></span>
+                </div>
+                <div class="result-area" id="pciPreview"></div>
+            </section>
 
-                <!-- Live Log Modal (hidden by default) -->
-                <div id="liveLogModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeLiveLog()">
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(700px,95vw);max-height:80vh;background:var(--surface-2);border:1px solid var(--border-2);border-radius:14px;display:flex;flex-direction:column;overflow:hidden">
-                        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border-1);flex-shrink:0">
-                            <div style="display:flex;align-items:center;gap:8px">
-                                <span style="width:7px;height:7px;border-radius:50%;background:var(--emerald);animation:beat 1s ease-in-out infinite;display:inline-block"></span>
-                                <span style="font-size:.85rem;font-weight:600">Live Logs</span>
-                                <span id="liveLogCountModal" style="font-size:.68rem;color:var(--text-3)">0 lines</span>
-                            </div>
-                            <button onclick="closeLiveLog()" style="background:transparent;border:none;color:var(--text-2);cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px;transition:all .15s" onmouseover="this.style.background='var(--surface-4)'" onmouseout="this.style.background='transparent'">✕</button>
+            <section class="card" id="sec3">
+                <div class="card-head">
+                    <div class="card-title"><span class="num" id="n3">3</span> Build VM</div>
+                    <span class="badge badge-gray" id="buildBadge">idle</span>
+                </div>
+                <div class="build-row">
+                    <div class="ring-wrap">
+                        <svg width="120" height="120" viewBox="0 0 120 120">
+                            <defs>
+                                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#7c3aed"/>
+                                    <stop offset="100%" stop-color="#a855f7"/>
+                                </linearGradient>
+                            </defs>
+                            <circle class="ring-bg" cx="60" cy="60" r="52"/>
+                            <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="52"
+                                    stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+                        </svg>
+                        <div class="ring-center"><div><div class="ring-pct" id="ringPct">0%</div><div class="ring-label">build</div></div></div>
+                    </div>
+                    <div style="flex:1;min-width:240px">
+                        <div class="hint" id="buildHint">Configure a VM above, then build. The agent streams its decisions live in the console.</div>
+                        <div class="form-actions" style="margin-top:12px">
+                            <button class="btn btn-accent" id="buildBtn">▶ Build VM</button>
+                            <button class="btn btn-danger" id="cancelBtn" style="display:none">■ Cancel build</button>
+                            <span class="muted" id="etaVal"></span>
                         </div>
-                        <div id="liveLog" style="flex:1;overflow-y:auto;padding:12px 16px;font-family:var(--mono);font-size:.72rem;line-height:1.6;color:var(--text-1);white-space:pre-wrap;word-break:break-word;min-height:300px;max-height:60vh">
-                            <span style="color:var(--text-3)">Waiting for log output...</span>
+                        <div class="error-text" id="buildError"></div>
+                    </div>
+                </div>
+                <div class="builds-list-wrap">
+                    <div class="builds-list" id="buildsList"></div>
+                    <div class="builds-empty" id="buildsEmpty">No builds yet — click <b>Build VM</b> to start one. You can start several at once, even on different servers — every build keeps running in the background with its own live log, and comes back here when you reconnect.</div>
+                </div>
+                <div class="result-area" id="resultArea">
+                    <div class="result-box">
+                        <div class="vm-name" id="resultName">VM built</div>
+                        <div class="vm-meta" id="resultMeta"></div>
+                        <div style="margin-top:10px">
+                            <button class="btn btn-sm" id="resultLogBtn">View build log</button>
                         </div>
                     </div>
                 </div>
+            </section>
+        </div>
 
-                <!-- Live Log Modal trigger (floating button moved to global) -->
-                <div id="resultArea"></div>
-
-                <div class="btn-row" id="buildActions" style="display:none">
-                    <button class="btn btn-primary" onclick="doReset()">New VM</button>
+        <aside class="col-side">
+            <div class="card console-card">
+                <div class="card-head" style="margin-bottom:0">
+                    <div class="card-title">Agent console <span class="badge badge-gray" id="agentBadge">idle</span></div>
+                    <div class="console-state" id="consoleState">standby</div>
+                    <div class="console-focus" id="consoleFocus"></div>
+                </div>
+                <div class="console-scroll" id="consoleScroll">
+                    <div id="timeline"></div>
+                    <div id="stream"></div>
+                    <div class="stream-empty" id="streamEmpty">
+                        The agent's decisions appear here as it plans and executes the build.<br><br>
+                        <span class="mono" style="font-size:11px">Plan → execute → recover → report</span>
+                    </div>
                 </div>
             </div>
+        </aside>
+    </main>
 
-        </div><!-- /panel -->
-    </div><!-- /main -->
-</div><!-- /app -->
-
-<!-- Floating Live Logs button — always visible -->
-<button id="liveLogBtn" onclick="toggleLiveLog()" style="
-    position:fixed;bottom:24px;right:24px;z-index:900;
-    display:flex;align-items:center;gap:8px;
-    background:var(--surface-2);border:1px solid var(--border-2);
-    border-radius:100px;padding:10px 18px;
-    font-size:.78rem;font-weight:600;font-family:var(--font);
-    color:var(--text-1);cursor:pointer;
-    box-shadow:0 4px 20px rgba(0,0,0,.4);
-    transition:all .2s;
-" onmouseover="this.style.borderColor='var(--indigo)';this.style.color='var(--text-0)'" onmouseout="this.style.borderColor='var(--border-2)';this.style.color='var(--text-1)'">
-    <span id="liveLogBtnDot" style="width:7px;height:7px;border-radius:50%;background:var(--text-3);flex-shrink:0"></span>
-    <span>Live Logs</span>
-    <span id="liveLogBadge" style="background:var(--surface-4);color:var(--text-2);border-radius:100px;padding:1px 8px;font-size:.65rem;font-weight:600;min-width:24px;text-align:center">0</span>
-</button>
-
-<script>
-// ── State ──────────────────────────────────────────────────
-let hostResources = {};
-let currentStep = 1;
-let existingVmNames = [];
-let vmTemplates = [];
-let liveLogLineCount = 0;
-let agentModeEnabled = false;
-
-// ── Agent Mode Toggle ─────────────────────────────────────
-function toggleAgentMode() {
-    agentModeEnabled = document.getElementById('agentModeToggle').checked;
-    const slider = document.getElementById('agentModeSlider');
-    const knob = document.getElementById('agentModeKnob');
-    const status = document.getElementById('agentModeStatus');
-    const badge = document.getElementById('agentBadge');
-    if(agentModeEnabled) {
-        slider.style.background = 'rgba(139,92,246,.3)';
-        slider.style.borderColor = '#7c3aed';
-        knob.style.background = '#a78bfa';
-        knob.style.transform = 'translateX(18px)';
-        status.textContent = 'Agent';
-        status.style.color = '#a78bfa';
-        badge.style.display = 'block';
-    } else {
-        slider.style.background = 'var(--surface-4)';
-        slider.style.borderColor = 'var(--border-2)';
-        knob.style.background = 'var(--text-3)';
-        knob.style.transform = 'translateX(0)';
-        status.textContent = 'Classic';
-        status.style.color = 'var(--text-3)';
-        badge.style.display = 'none';
-    }
-}
-
-// ── Step navigation ────────────────────────────────────────
-function goStep(n) {
-    currentStep = n;
-    [1,2,3].forEach(i => {
-        document.getElementById('sec'+i).classList.toggle('active', i===n);
-        const s = document.getElementById('step'+i);
-        s.classList.remove('active','done');
-        if(i < n) s.classList.add('done');
-        else if(i === n) s.classList.add('active');
-    });
-}
-
-// ── Helpers ────────────────────────────────────────────────
-function showError(elId, msg) {
-    const el = document.getElementById(elId);
-    if(el) el.innerHTML = msg ? `<div class="error-msg">${esc(msg)}</div>` : '';
-}
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
-function setLoading(btnId, spinnerId, loading) {
-    const btn = document.getElementById(btnId);
-    const sp = document.getElementById(spinnerId);
-    if(btn) btn.disabled = loading;
-    if(sp) sp.classList.toggle('active', loading);
-}
-
-// ── Resource validation ────────────────────────────────────
-function validateResource(input, key, label) {
-    const val = parseFloat(input.value);
-    const max = hostResources[key] || 0;
-    const hintId = input.id === 'memGb' ? 'memHint' : 'cpuHint';
-    const hint = document.getElementById(hintId);
-    input.classList.remove('warn','error');
-    const isCpu = (input.id === 'numCpu');
-    const cpuFree = hostResources['cpu_free'] ?? max;
-    const cpuTotal = hostResources['cpu_count'] || max;
-    const effectiveMax = isCpu ? cpuFree : max;
-    const hintText = max ? (isCpu ? `${cpuFree} free / ${cpuTotal} total cores` : `Available: ${max} ${label}`) : '';
-    if(hint) { hint.className='field-hint'; hint.textContent = hintText; }
-    if(!val || !effectiveMax) return;
-    if(val > effectiveMax) {
-        input.classList.add('error');
-        if(hint) { hint.className='field-hint error'; hint.textContent = isCpu ? `Exceeds free cores (${cpuFree} free / ${cpuTotal} total)` : `Exceeds available ${max} ${label}`; }
-    } else if(val > effectiveMax * 0.9) {
-        input.classList.add('warn');
-        if(hint) { hint.className='field-hint warn'; hint.textContent = isCpu ? `Using ${Math.round(val/cpuFree*100)}% of free cores` : `Using ${Math.round(val/max*100)}% of available ${label}`; }
-    }
-}
-
-function validateDisk(input) {
-    const hint = document.getElementById('diskHint');
-    const freeGb = hostResources['disk_free_gb'] || 0;
-    input.classList.remove('warn','error');
-    if(hint) { hint.className='field-hint'; hint.textContent = freeGb ? `Free: ${freeGb} GB` : ''; }
-    if(!input.value || !freeGb) return;
-    // Try to parse with unit; if no unit, treat as GB (auto-G is applied on submit)
-    const mUnit = input.value.match(/^(\d+(?:\.\d+)?)\s*([GMTgmt])/);
-    const mNum  = input.value.match(/^(\d+(?:\.\d+)?)$/);
-    let gb;
-    if(mUnit) {
-        gb = parseFloat(mUnit[1]);
-        const unit = mUnit[2].toUpperCase();
-        if(unit==='M') gb /= 1024;
-        else if(unit==='T') gb *= 1024;
-    } else if(mNum) {
-        gb = parseFloat(mNum[1]); // plain number → treated as GB
-    } else {
-        return; // non-numeric input, skip
-    }
-    if(gb > freeGb) {
-        input.classList.add('error');
-        if(hint) { hint.className='field-hint error'; hint.textContent = `Exceeds free disk (${freeGb} GB)`; }
-    } else if(gb > freeGb * 0.9) {
-        input.classList.add('warn');
-        if(hint) { hint.className='field-hint warn'; hint.textContent = `Using ${Math.round(gb/freeGb*100)}% of free disk`; }
-    }
-}
-
-function validateVmName(input) {
-    const hint = document.getElementById('vmNameHint');
-    const name = input.value.trim();
-    input.classList.remove('warn','error');
-    if(hint) { hint.className='field-hint'; hint.textContent=''; }
-    if(!name) return;
-    if(existingVmNames.includes(name)) {
-        input.classList.add('error');
-        if(hint) { hint.className='field-hint error'; hint.textContent='VM name already exists. Delete it first or choose a different name.'; }
-    }
-}
-
-function toggleAcs() {
-    const p2p = document.getElementById('vmType').value === 'p2p';
-    document.getElementById('acsField').style.display = p2p ? 'flex' : 'none';
-}
-
-// ── Step 1: Connect ────────────────────────────────────────
-async function doConnect() {
-    const host = document.getElementById('hostIp').value.trim();
-    const user = document.getElementById('hostUser').value.trim();
-    const pass = document.getElementById('hostPass').value;
-    if(!host) { showError('connectError','Host IP / Hostname is required.'); return; }
-    if(!user) { showError('connectError','Username is required.'); return; }
-    if(!pass) { showError('connectError','Password is required.'); return; }
-
-    showError('connectError','');
-    setLoading('connectBtn','connectSpinner',true);
-    document.getElementById('connectBtn').querySelector('span').textContent = 'Connecting...';
-
-    try {
-        const r = await fetch('/api/connect', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({host_ip:host, username:user, password:pass})
-        });
-        const d = await r.json();
-        if(d.error) { showError('connectError', d.error); return; }
-
-        hostResources = d.resources || {};
-
-        // Show summary — rendered as HTML (Claude returns HTML snippet)
-        document.getElementById('hostSummary').innerHTML =
-            '<div style="display:flex;align-items:flex-start;gap:10px">' +
-            '<div class="res-dot" style="margin-top:5px;flex-shrink:0"></div>' +
-            '<div>' + (d.summary || 'Connected.') + '</div></div>';
-
-        // Pre-fill hints
-        setTimeout(() => {
-            validateResource(document.getElementById('memGb'), 'ram_free_gb', 'GB RAM');
-            validateResource(document.getElementById('numCpu'), 'cpu_count', 'CPUs');
-            validateDisk(document.getElementById('diskSize'));
-        }, 50);
-
-        goStep(2);
-        // Load existing VMs list and templates
-        loadVmList();
-        loadTemplates();
-    } catch(e) {
-        showError('connectError', 'Connection failed: ' + e.message);
-    } finally {
-        setLoading('connectBtn','connectSpinner',false);
-        document.getElementById('connectBtn').querySelector('span').textContent = 'Connect';
-    }
-}
-
-// ── Templates ─────────────────────────────────────────────
-async function loadTemplates() {
-    try {
-        const r = await fetch('/api/templates');
-        const d = await r.json();
-        vmTemplates = d.templates || [];
-        const sel = document.getElementById('templateSelect');
-        sel.innerHTML = '<option value="">— Custom (fill fields manually) —</option>';
-        vmTemplates.forEach((t, i) => {
-            const opt = document.createElement('option');
-            opt.value = String(i);
-            opt.textContent = t.name + (t.description ? ' — ' + t.description : '');
-            sel.appendChild(opt);
-        });
-    } catch(e) { /* silent */ }
-}
-
-function applyTemplate() {
-    const idx = document.getElementById('templateSelect').value;
-    if(idx === '') return;
-    const t = vmTemplates[parseInt(idx, 10)];
-    if(!t || !t.config) return;
-    const cfg = t.config;
-    const setField = (id, val) => {
-        const el = document.getElementById(id);
-        if(el && val !== undefined && val !== null) el.value = val;
-    };
-    setField('memGb', cfg.memory_gb);
-    setField('numCpu', cfg.num_cpu);
-    setField('diskSize', cfg.disk_size);
-    setField('aicCards', cfg.aic_cards);
-    if(cfg.vm_type) {
-        document.getElementById('vmType').value = cfg.vm_type;
-        toggleAcs();
-    }
-    if(cfg.acs_state) document.getElementById('acsState').value = cfg.acs_state;
-    if(cfg.debug) document.getElementById('debugMode').value = cfg.debug;
-    if(cfg.vm_username) document.getElementById('vmUser').value = cfg.vm_username;
-    // Re-validate
-    validateResource(document.getElementById('memGb'), 'ram_free_gb', 'GB RAM');
-    validateResource(document.getElementById('numCpu'), 'cpu_count', 'CPUs');
-    validateDisk(document.getElementById('diskSize'));
-}
-
-// ── Health dashboard ──────────────────────────────────────
-async function showHealth() {
-    const panel = document.getElementById('healthPanel');
-    if(panel.classList.contains('active')) {
-        panel.classList.remove('active');
-        return;
-    }
-    panel.classList.add('active');
-    panel.innerHTML = '<div style="color:var(--text-3);font-size:.75rem">Loading health...</div>';
-    try {
-        const r = await fetch('/api/health');
-        const d = await r.json();
-        if(d.error) { panel.innerHTML = `<div style="color:var(--rose);font-size:.75rem">${esc(d.error)}</div>`; return; }
-        const res = d.host_resources || {};
-        const states = d.vm_states || {};
-        const qmOk = d.qmonitor_active;
-        panel.innerHTML = `
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-                <strong style="font-size:.8rem;color:var(--text-0)">Server Health</strong>
-                <span class="health-status ${qmOk ? 'ok' : 'bad'}">
-                    <span class="dot" style="background:${qmOk ? 'var(--emerald)' : 'var(--rose)'}"></span>
-                    qmonitor: ${qmOk ? 'active' : 'inactive'}
-                </span>
+    <div class="section-below">
+        <section class="card" id="vmSection">
+            <div class="card-head">
+                <div class="card-title">VM inventory</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span class="muted" id="vmCount"></span>
+                    <button class="btn btn-sm" id="refreshVms">Refresh</button>
+                    <button class="btn btn-sm btn-danger" id="bulkDeleteBtn" style="display:none">Delete selected</button>
+                </div>
             </div>
-            <div class="health-grid">
-                <div class="health-item"><div class="label">RAM Free</div><div class="value">${res.ram_free_gb || '?'} / ${res.ram_total_gb || '?'} GB</div></div>
-                <div class="health-item"><div class="label">CPU Free</div><div class="value">${res.cpu_free || '?'} / ${res.cpu_count || '?'} cores</div></div>
-                <div class="health-item"><div class="label">Disk Free</div><div class="value">${res.disk_free_gb || '?'} / ${res.disk_total_gb || '?'} GB</div></div>
-                <div class="health-item"><div class="label">Total VMs</div><div class="value">${d.total_vms || 0}</div></div>
-                <div class="health-item"><div class="label">Running</div><div class="value" style="color:var(--emerald)">${states.running || 0}</div></div>
-                <div class="health-item"><div class="label">Shut off</div><div class="value" style="color:var(--text-2)">${states['shut off'] || 0}</div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:30px"><input type="checkbox" class="check" id="checkAll"></th>
+                            <th>VM</th>
+                            <th>State</th>
+                            <th>vCPU</th>
+                            <th>Memory</th>
+                            <th>Disk</th>
+                            <th>IP</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vmTableBody"></tbody>
+                </table>
             </div>
-            <div style="margin-top:10px;font-size:.68rem;color:var(--text-3);text-align:right">
-                Active sessions: ${d.active_sessions || 0}
+            <div class="vm-empty" id="vmEmpty" style="display:none">
+                Connect to a host and hit <b>Refresh</b> to see existing VMs.
             </div>
-        `;
-    } catch(e) {
-        panel.innerHTML = `<div style="color:var(--rose);font-size:.75rem">Failed: ${esc(e.message)}</div>`;
-    }
-}
+        </section>
 
-// ── Auto-reconnect on page load ──────────────────────────
-(async function checkActiveSession() {
-    try {
-        const r = await fetch('/api/session_status');
-        const d = await r.json();
-        if(d.stage === 'running' && d.vm_name) {
-            // Build is in progress — show progress UI and load existing logs
-            goStep(3);
-            document.getElementById('buildTitle').textContent = `Building VM: ${d.vm_name}`;
-            document.getElementById('buildSub').textContent = 'Reconnected — build is still running on server.';
-            // Animate dot
-            const llDot = document.getElementById('liveLogBtnDot');
-            if(llDot) { llDot.style.background = 'var(--emerald)'; llDot.style.animation = 'beat 1s ease-in-out infinite'; }
-            // Load existing logs from file
+        <section class="card" id="healthPanel">
+            <div class="card-head">
+                <div class="card-title">Host health</div>
+                <button class="btn btn-sm" id="refreshHealth">Refresh</button>
+            </div>
+            <div class="health-grid" id="healthGrid"></div>
+            <div class="health-note" id="healthNote"></div>
+        </section>
+    </div>
+
+    <footer class="footer">
+        <span>VM Agent · internal provisioning tool</span>
+        <span>Targets: KVM / libvirt · Ubuntu 22.04+ · IOMMU + AIC passthrough</span>
+        <span class="spacer"></span>
+        <span id="footHost"></span>
+    </footer>
+
+    <div class="modal" id="liveLogModal">
+        <div class="modal-backdrop" data-close="1"></div>
+        <div class="modal-box">
+            <div class="modal-head">
+                <div class="t">Build log — <span class="mono" id="logVmName"></span></div>
+                <div style="display:flex;gap:10px;align-items:center">
+                    <button class="btn btn-sm" id="logDownloadBtn">Download</button>
+                    <button class="modal-close" data-close="1">✕</button>
+                </div>
+            </div>
+            <div class="modal-body"><div class="log-lines" id="logLines">Loading…</div></div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        // ── connect-first gate (server-rendered) ─────────
+        const AUTHD = {{ 'true' if authed else 'false' }};
+        const apiKeySet = {{ 'true' if api_key_set else 'false' }};
+        // Session token travels in a header so it survives environments where
+        // cookies are blocked (e.g. sandboxed preview iframes).
+        let SESSION_TOKEN = localStorage.getItem('vm_agent_session') || '{{ session_token }}';
+        if (!localStorage.getItem('vm_agent_session')) localStorage.setItem('vm_agent_session', SESSION_TOKEN);
+
+        // ── helpers ──────────────────────────────────────
+        const $ = (id) => document.getElementById(id);
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmt = (n) => (n == null || n === '' || isNaN(n)) ? '—' : n;
+        const hasKey = () => localStorage.getItem('vm_agent_api_key') || '';
+
+        async function apiFetch(url, opts = {}) {
+            const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+            if (SESSION_TOKEN) headers['X-Session-Token'] = SESSION_TOKEN;
+            const key = hasKey();
+            if (key) headers['X-API-Key'] = key;
+            const res = await fetch(url, Object.assign({}, opts, { headers }));
+            if (res.status === 401 && !opts._retried) {
+                // Not connected — bring back the connect screen.
+                applyAuthState(false);
+                throw new Error('Connect to your server first.');
+            }
+            let data = null;
+            try { data = await res.json(); } catch (e) { /* non-JSON */ }
+            if (!res.ok && data && data.error) throw new Error(data.error);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return data || {};
+        }
+
+        function setBadge(id, text, cls) {
+            const b = $(id);
+            if (!b) return;
+            b.textContent = text;
+            b.className = 'badge ' + (cls || 'badge-gray');
+        }
+
+        function showErr(id, msg) {
+            const e = $(id);
+            if (!e) return;
+            e.textContent = msg;
+            e.classList.add('show');
+        }
+        function hideErr(id) {
+            const e = $(id);
+            if (e) e.classList.remove('show');
+        }
+
+        function markStep(n, cls) {
+            const el = $('n' + n);
+            if (!el) return;
+            el.className = 'num' + (cls ? ' ' + cls : '');
+        }
+
+        // ── connect screen / session gate ────────────────
+        function applyAuthState(connected) {
+            const ov = $('loginOverlay');
+            if (ov) ov.classList.toggle('hidden', connected);
+            if (connected) hideErr('loginError');
+        }
+        applyAuthState(AUTHD);
+
+        async function doConnect() {
+            const h = $('loginHost').value.trim();
+            const u = $('loginUser').value.trim();
+            const p = $('loginPass').value;
+            if (!h || !u || !p) { showErr('loginError', 'Enter the server IP, username and password.'); return; }
+            hideErr('loginError');
+            const btn = $('loginBtn');
+            btn.disabled = true;
+            btn.textContent = 'Connecting…';
             try {
-                const lr = await fetch(`/api/logs/tail/${encodeURIComponent(d.vm_name)}?limit=500`);
-                const ld = await lr.json();
-                if(ld.lines && ld.lines.length > 0) {
-                    const liveLog = document.getElementById('liveLog');
-                    if(liveLog) {
-                        liveLog.innerHTML = '';
-                        ld.lines.forEach(line => {
-                            let cls = '';
-                            if(line.includes('⚠') || line.includes('Error') || line.includes('FAILED')) cls = 'warn';
-                            else if(line.includes('✅') || line.includes('SUCCESS')) cls = 'ok';
-                            else if(line.includes('❌')) cls = 'err';
-                            const div = document.createElement('div');
-                            div.className = 'live-log-line' + (cls ? ' ' + cls : '');
-                            div.textContent = line;
-                            liveLog.appendChild(div);
-                        });
-                        liveLogLineCount = ld.lines.length;
-                        const badge = document.getElementById('liveLogBadge');
-                        if(badge) badge.textContent = liveLogLineCount;
-                        const countModal = document.getElementById('liveLogCountModal');
-                        if(countModal) countModal.textContent = liveLogLineCount + ' lines (from log file)';
-                        liveLog.scrollTop = liveLog.scrollHeight;
-                    }
+                const d = await apiFetch('/api/login', { method: 'POST', body: JSON.stringify({ host_ip: h, username: u, password: p }) });
+                if (d && d.session_token) {
+                    SESSION_TOKEN = d.session_token;
+                    localStorage.setItem('vm_agent_session', SESSION_TOKEN);
                 }
-            } catch(e) { /* silent */ }
-            // Show a banner
-            const tLog = document.getElementById('tLog');
-            if(tLog) tLog.innerHTML = `<div class="tool-item"><span class="tool-dot running"></span>Build in progress — open Live Logs to see details</div>`;
-        } else if(d.stage === 'connected' && d.host_ip) {
-            // Was connected but not building — skip to step 2 silently
-            // (can't restore SSH without credentials, so just show connect screen)
-        }
-    } catch(e) { /* silent — server may not be running */ }
-})();
-
-// Allow Enter key on connect form
-['hostIp','hostUser','hostPass'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter') doConnect(); });
-});
-
-// ── Step 2 → 3: Execute ────────────────────────────────────
-async function doExecute() {
-    showError('formError','');
-
-    const vmName = document.getElementById('vmName').value.trim();
-    const memGb  = document.getElementById('memGb').value.trim();
-    const numCpu = document.getElementById('numCpu').value.trim();
-    const diskSize = document.getElementById('diskSize').value.trim();
-    const osImage = document.getElementById('osImage').value.trim();
-    const vmType = document.getElementById('vmType').value;
-    const vmUser = document.getElementById('vmUser').value.trim();
-    const vmPass = document.getElementById('vmPass').value;
-    const acsState = document.getElementById('acsState').value;
-    const debug = document.getElementById('debugMode').value;
-
-    if(!vmName) { showError('formError','VM Name is required.'); return; }
-    if(!memGb)  { showError('formError','Memory is required.'); return; }
-    if(!numCpu) { showError('formError','CPU count is required.'); return; }
-    if(!diskSize){ showError('formError','Disk size is required.'); return; }
-    if(!osImage) { showError('formError','OS Image path is required.'); return; }
-    if(!vmPass)  { showError('formError','VM Password is required.'); return; }
-
-    // Check for error-class inputs
-    const errInputs = document.querySelectorAll('#sec2 input.error');
-    if(errInputs.length) { showError('formError','Please fix the highlighted fields before continuing.'); return; }
-
-    goStep(3);
-    document.getElementById('buildTitle').textContent = `Building VM: ${vmName}`;
-    // Animate the floating button dot to show build is active
-    const llDot = document.getElementById('liveLogBtnDot');
-    if(llDot) { llDot.style.background = 'var(--emerald)'; llDot.style.animation = 'beat 1s ease-in-out infinite'; }
-
-    const aicCards = document.getElementById('aicCards').value.trim();
-
-    // Build query string
-    const params = new URLSearchParams({
-        vm_name: vmName,
-        memory_gb: memGb,
-        num_cpu: numCpu,
-        disk_size: diskSize,
-        os_image: osImage,
-        vm_type: vmType,
-        vm_username: vmUser,
-        vm_password: vmPass,
-        acs_state: acsState,
-        debug: debug,
-        aic_cards: aicCards,
-        agent_mode: agentModeEnabled ? '1' : '0',
-    });
-
-    const tLog = document.getElementById('tLog');
-    const liveLog = document.getElementById('liveLog');
-    const liveLogCount = document.getElementById('liveLogCount');
-    // Reset live log
-    if(liveLog) liveLog.innerHTML = '';
-    liveLogLineCount = 0;
-    if(liveLogCount) liveLogCount.textContent = '0 lines';
-    const ringFill = document.getElementById('ringFill');
-    const ringPct = document.getElementById('ringPct');
-    const ringSteps = document.getElementById('ringSteps');
-    const etaVal = document.getElementById('etaVal');
-    const CIRC = 339.3; // 2 * π * 54
-    let total = 1;
-    let planNames = [];
-
-    // Estimated seconds per tool (realistic estimates)
-    const TOOL_EST = {
-        tool_download_iso: 60,
-        tool_run_mq_vm_install: 900,
-        tool_run_mq_vm_p2p_install: 900,
-        tool_shutdown_vm: 30,
-        tool_list_pci_devices: 10,
-        tool_generate_pci_xml: 10,
-        tool_attach_pci_devices: 30,
-        tool_start_vm: 15,
-    };
-
-    function fmtEta(secs) {
-        if(secs <= 0) return 'almost done';
-        if(secs < 60) return '~' + Math.round(secs) + 's';
-        const m = Math.round(secs / 60);
-        return '~' + m + ' min';
-    }
-
-    function updateRing(step, tot) {
-        const pct = tot > 0 ? Math.round((step / tot) * 100) : 0;
-        const offset = CIRC - (CIRC * pct / 100);
-        ringFill.style.strokeDashoffset = offset;
-        ringPct.textContent = pct + '%';
-        ringSteps.textContent = step + ' / ' + tot;
-        // ETA: sum estimates of remaining tools (simple, always decreasing)
-        const remaining = planNames.slice(step);
-        const etaSecs = remaining.reduce(function(s,n){return s+(TOOL_EST[n]||30);}, 0);
-        etaVal.textContent = fmtEta(etaSecs);
-    }
-
-    function appendLiveLog(line, cls) {
-        if(!liveLog) return;
-        // Remove placeholder on first real line
-        if(liveLogLineCount === 0) liveLog.innerHTML = '';
-        const div = document.createElement('div');
-        div.className = 'live-log-line' + (cls ? ' ' + cls : '');
-        div.textContent = line;
-        liveLog.appendChild(div);
-        liveLogLineCount++;
-        // Update badge counter
-        const badge = document.getElementById('liveLogBadge');
-        if(badge) badge.textContent = liveLogLineCount;
-        const countModal = document.getElementById('liveLogCountModal');
-        if(countModal) countModal.textContent = liveLogLineCount + ' lines';
-        // Keep only last 500 lines to avoid memory bloat
-        while(liveLog.childElementCount > 500) liveLog.removeChild(liveLog.firstChild);
-        // Auto-scroll only if modal is open
-        const modal = document.getElementById('liveLogModal');
-        if(modal && modal.style.display !== 'none') liveLog.scrollTop = liveLog.scrollHeight;
-    }
-
-    const es = new EventSource('/api/execute?' + params.toString());
-    es.onmessage = e => {
-        const d = JSON.parse(e.data);
-
-        if(d.type === 'log') {
-            // Real-time log line from installer_autopilot
-            let cls = '';
-            const l = String(d.line || '');
-            if(l.includes('⚠') || l.includes('Error') || l.includes('FAILED')) cls = 'warn';
-            else if(l.includes('✅') || l.includes('SUCCESS')) cls = 'ok';
-            else if(l.includes('❌')) cls = 'err';
-            appendLiveLog(l, cls);
-        }
-        else if(d.type === 'progress') {
-            // Backend progress event: percent, step, total
-            if(d.percent !== undefined) {
-                const offset = CIRC - (CIRC * d.percent / 100);
-                ringFill.style.strokeDashoffset = offset;
-                ringPct.textContent = d.percent + '%';
-                if(d.step !== undefined && d.total !== undefined) {
-                    ringSteps.textContent = d.step + ' / ' + d.total;
-                }
+                $('loginPass').value = '';
+                const label = $('userLabel');
+                if (label) { label.textContent = ((d && d.username) || u) + '@' + ((d && d.host_ip) || h); label.style.display = 'inline-flex'; }
+                applyAuthState(true);
+                showConnectedHost(d.host_ip || h, d.resources || {});
+                streamAdd('ok', 'Server connected', 'SSH to <b>' + esc(h) + '</b> established. Host resources fetched.', h);
+                loadTemplates();
+                loadVms(); loadHealth();
+                restoreSession();
+                loadBuilds();
+                startPolling();
+            } catch (err) {
+                showErr('loginError', err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Connect';
             }
         }
-        else if(d.type === 'error') {
-            document.getElementById('buildSub').textContent = 'Error: ' + d.msg;
-            tLog.innerHTML += `<div class="tool-item"><span class="tool-dot fail"></span>${esc(d.msg)}</div>`;
-            appendLiveLog('ERROR: ' + d.msg, 'err');
-            etaVal.textContent = '—';
-            es.close();
-            document.getElementById('buildActions').style.display = 'flex';
-        }
-        else if(d.type === 'start') {
-            total = d.total;
-            planNames = d.plan || [];
-            updateRing(0, total);
-        }
-        else if(d.type === 'running') {
-            const label = d.tool.replace(/^tool_/, '').replace(/_/g, ' ');
-            tLog.innerHTML += `<div class="tool-item" id="ti_${d.step}"><span class="tool-dot running"></span>${esc(label)}</div>`;
-            scrollMain();
-        }
-        else if(d.type === 'done') {
-            const item = document.getElementById('ti_'+d.step);
-            if(item) item.querySelector('.tool-dot').className = 'tool-dot done';
-            updateRing(d.step, total);
-            scrollMain();
-        }
-        else if(d.type === 'retry') {
-            const label = d.tool.replace(/^tool_/, '').replace(/_/g, ' ');
-            tLog.innerHTML += `<div class="tool-item"><span class="tool-dot" style="background:var(--amber)"></span>${esc(label)} — retry ${d.attempt}</div>`;
-            scrollMain();
-        }
-        else if(d.type === 'failed') {
-            const items = tLog.querySelectorAll('.tool-item');
-            if(items.length) items[items.length-1].querySelector('.tool-dot').className = 'tool-dot fail';
-            ringFill.style.stroke = 'var(--rose)';
-            etaVal.textContent = 'failed';
-            document.getElementById('resultArea').innerHTML =
-                `<div class="error-msg" style="margin-top:12px">Provisioning failed at <b>${esc(d.tool)}</b>: ${esc(d.error)}</div>`;
-            es.close();
-            document.getElementById('buildActions').style.display = 'flex';
-            scrollMain();
-        }
-        else if(d.type === 'complete') {
-            updateRing(total, total);
-            ringFill.style.stroke = 'var(--emerald)';
-            ringPct.style.color = 'var(--emerald)';
-            etaVal.textContent = 'done';
-            document.getElementById('buildTitle').textContent = 'VM Ready';
-            document.getElementById('buildSub').textContent = 'All tools completed successfully.';
-            const vmPass = document.getElementById('vmPass') ? document.getElementById('vmPass').value : '';
-            const macLine = d.vm_mac ? `\nMAC Addr : ${d.vm_mac}` : '';
-            const configText = `Name     : ${d.vm_name}\nIP Addr  : ${d.vm_ip}${macLine}\nUsername : ${d.username}\nPassword : ${vmPass}`;
-            document.getElementById('resultArea').innerHTML =
-                `<div class="result-card">
-                    <h3>VM Provisioned Successfully</h3>
-                    <div class="pre-wrap">
-                        <pre id="vmConfigPre">  ${esc(configText).replace(/\n/g,'\n  ')}</pre>
-                        <button class="copy-btn" id="copyBtn" title="Copy to clipboard" onclick="copyConfig()">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>`;
-            es.close();
-            document.getElementById('buildActions').style.display = 'flex';
-            scrollMain();
-        }
-    };
-    es.onerror = () => {
-        es.close();
-        document.getElementById('buildSub').textContent = 'Connection lost.';
-        etaVal.textContent = '—';
-        document.getElementById('buildActions').style.display = 'flex';
-    };
-}
+        $('loginBtn').addEventListener('click', doConnect);
+        $('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doConnect(); });
+        $('loginUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') doConnect(); });
+        $('loginHost').addEventListener('keydown', (e) => { if (e.key === 'Enter') doConnect(); });
 
-// ── Copy config to clipboard ──────────────────────────────
-function copyConfig() {
-    const pre = document.getElementById('vmConfigPre');
-    const btn = document.getElementById('copyBtn');
-    if(!pre || !btn) return;
-    const text = pre.innerText.trim();
-    navigator.clipboard.writeText(text).then(() => {
-        btn.classList.add('copied');
-        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-        setTimeout(() => {
-            btn.classList.remove('copied');
-            btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-        }, 2000);
-    }).catch(() => {
-        // Fallback for older browsers
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        btn.classList.add('copied');
-        setTimeout(() => btn.classList.remove('copied'), 2000);
-    });
-}
-
-// ── VM List Management ────────────────────────────────────
-async function loadVmList() {
-    const card = document.getElementById('vmListCard');
-    const body = document.getElementById('vmListBody');
-    card.style.display = 'block';
-    body.innerHTML = '<span style="color:var(--text-3)">Loading VMs...</span>';
-
-    try {
-        const r = await fetch('/api/list_vms');
-        const d = await r.json();
-        if(d.error) { body.innerHTML = `<span style="color:var(--rose)">${esc(d.error)}</span>`; return; }
-
-        const vms = d.vms || [];
-        // Update the existingVmNames array for name validation
-        existingVmNames = vms.map(v => v.name);
-
-        if(vms.length === 0) {
-            body.innerHTML = '<span style="color:var(--text-3)">No VMs found on this host.</span>';
-            return;
-        }
-
-        let html = '<div style="display:flex;flex-direction:column;gap:6px">';
-        vms.forEach(vm => {
-            const stateColor = vm.state === 'running' ? 'var(--emerald)' : vm.state === 'shut off' ? 'var(--text-3)' : 'var(--amber)';
-            const specs = vm.specs || {};
-            const tooltipText = `vCPUs: ${specs.vcpus || '?'}&#10;Memory: ${specs.memory || '?'}&#10;Disk: ${specs.disk || '?'}&#10;IP: ${specs.ip || 'N/A'}&#10;MAC: ${specs.mac || 'N/A'}&#10;Protocol: ${specs.protocol || 'N/A'}`;
-            html += `<div class="vm-row" id="vmrow_${vm.name}" style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--surface-0);border-radius:8px;border:1px solid var(--border-1)">
-                <span style="width:7px;height:7px;border-radius:50%;background:${stateColor};flex-shrink:0"></span>
-                <span style="flex:1;font-family:var(--mono);font-size:.76rem;color:var(--text-1)">${esc(vm.name)}</span>
-                <span title="${tooltipText}" style="cursor:help;width:16px;height:16px;margin-right:4px;display:inline-flex;align-items:center;justify-content:center" class="info-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-2)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><circle cx="12" cy="8" r="0.5" fill="currentColor"/></svg></span>
-                <span style="font-size:.65rem;color:var(--text-3);margin-right:4px">${esc(vm.state)}</span>
-                <button onclick="toggleVm('${esc(vm.name)}','${vm.state === 'running' ? 'shutdown' : 'start'}')" id="togbtn_${vm.name}" style="
-                    padding:3px 10px;border-radius:6px;border:1px solid var(--border-2);
-                    background:transparent;color:${vm.state === 'running' ? 'var(--amber)' : 'var(--emerald)'};font-size:.68rem;font-weight:500;
-                    cursor:pointer;transition:all .15s;font-family:var(--font);margin-right:4px;
-                " onmouseover="this.style.background='${vm.state === 'running' ? 'rgba(245,158,11,.1)' : 'rgba(16,185,129,.1)'}'" onmouseout="this.style.background='transparent'">${vm.state === 'running' ? 'Shut Down' : 'Bring Up'}</button>
-                <button onclick="deleteVm('${esc(vm.name)}')" style="
-                    padding:3px 10px;border-radius:6px;border:1px solid var(--border-2);
-                    background:transparent;color:var(--rose);font-size:.68rem;font-weight:500;
-                    cursor:pointer;transition:all .15s;font-family:var(--font);
-                " onmouseover="this.style.background='rgba(244,63,94,.1)'" onmouseout="this.style.background='transparent'">Delete</button>
-            </div>`;
+        $('logoutBtn').addEventListener('click', async () => {
+            stopPolling();
+            try { await apiFetch('/api/logout', { method: 'POST', body: '{}' }); } catch (e) { /* ignore */ }
+            window.location.reload();
         });
-        html += '</div>';
-        body.innerHTML = html;
-    } catch(e) {
-        body.innerHTML = `<span style="color:var(--rose)">Failed: ${esc(e.message)}</span>`;
-    }
-}
 
-async function deleteVm(name) {
-    const row = document.getElementById('vmrow_' + name);
-    if(!row) return;
+        // ── agent console stream ─────────────────────────
+        const state = {
+            connected: false,
+            agentMode: true,
+            buildActive: false,   // focused build in progress?
+            es: null,             // EventSource of the focused build
+            plan: [],
+            stepEls: [],
+            builds: {},           // build_id -> {id, vmName, es, active, el, badgeEl, barEl, logEl, cancelEl, lines, events, progress}
+            focused: null,        // build_id shown in the console
+            pollTimer: null,      // periodic inventory/health refresh
+        };
 
-    // Replace delete button with progress spinner
-    const btn = row.querySelector('button');
-    if(btn) btn.outerHTML = '<div style="width:14px;height:14px;border:2px solid var(--rose);border-top-color:transparent;border-radius:50%;animation:spin .5s linear infinite"></div>';
-
-    try {
-        const r = await fetch('/api/delete_vm', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({vm_name: name})
-        });
-        const d = await r.json();
-        if(d.error) {
-            row.innerHTML = `<span style="color:var(--rose);font-size:.75rem">Error: ${esc(d.error)}</span>`;
-            return;
+        // ── live polling while connected ─────────────────
+        // The inventory is always read straight from the connected host
+        // (virsh), so a periodic refresh keeps states honest even when a
+        // VM was stopped/started outside this browser or finished building
+        // on this host while we were looking elsewhere.
+        function startPolling() {
+            if (state.pollTimer) return;
+            state.pollTimer = setInterval(() => {
+                if (!state.connected) return;
+                loadVms();
+                loadHealth();
+            }, 20000);
         }
-        // Remove from existingVmNames so name validation updates immediately
-        existingVmNames = existingVmNames.filter(n => n !== name);
-        // Re-validate the VM name field in case user was blocked by this name
-        const vmNameInput = document.getElementById('vmName');
-        if(vmNameInput && vmNameInput.value.trim()) validateVmName(vmNameInput);
-
-        // Success animation — flash red then fade out
-        row.style.transition = 'all .4s';
-        row.style.background = 'rgba(244,63,94,.15)';
-        row.style.borderColor = 'var(--rose)';
-        row.innerHTML = `<span style="color:var(--rose);font-size:.75rem;font-weight:500">✓ ${esc(name)} deleted</span>`;
-        setTimeout(() => {
-            row.style.opacity = '0';
-            row.style.height = '0';
-            row.style.padding = '0';
-            row.style.margin = '0';
-            row.style.overflow = 'hidden';
-            setTimeout(() => row.remove(), 400);
-        }, 1500);
-    } catch(e) {
-        row.innerHTML = `<span style="color:var(--rose);font-size:.75rem">Delete failed: ${esc(e.message)}</span>`;
-    }
-}
-
-async function toggleVm(name, action) {
-    const btn = document.getElementById('togbtn_' + name);
-    if(!btn) return;
-
-    // Show loading state
-    const origText = btn.textContent;
-    btn.textContent = action === 'shutdown' ? 'Stopping...' : 'Starting...';
-    btn.style.opacity = '0.6';
-    btn.disabled = true;
-
-    try {
-        const r = await fetch('/api/toggle_vm', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({vm_name: name, action: action})
-        });
-        const d = await r.json();
-        if(d.error) {
-            btn.textContent = 'Error!';
-            btn.style.color = 'var(--rose)';
-            setTimeout(() => { btn.textContent = origText; btn.style.color = ''; btn.style.opacity = '1'; btn.disabled = false; }, 2000);
-            return;
+        function stopPolling() {
+            if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
         }
-        // Success — reload the VM list to reflect new state
-        setTimeout(() => loadVmList(), 1000);
-    } catch(e) {
-        btn.textContent = 'Failed';
-        btn.style.color = 'var(--rose)';
-        setTimeout(() => { btn.textContent = origText; btn.style.color = ''; btn.style.opacity = '1'; btn.disabled = false; }, 2000);
-    }
-}
 
-function scrollMain() {
-    const m = document.querySelector('.main');
-    m.scrollTop = m.scrollHeight;
-}
+        function pendingId() { return 'pending-' + Date.now() + '-' + Math.floor(Math.random() * 1e4); }
 
-// ── Live Log Modal ────────────────────────────────────────
-function toggleLiveLog() {
-    const modal = document.getElementById('liveLogModal');
-    if(!modal) return;
-    if(modal.style.display === 'none' || !modal.style.display) {
-        modal.style.display = 'block';
-        const log = document.getElementById('liveLog');
-        if(log) log.scrollTop = log.scrollHeight;
-    } else {
-        modal.style.display = 'none';
-    }
-}
-function closeLiveLog() {
-    const modal = document.getElementById('liveLogModal');
-    if(modal) modal.style.display = 'none';
-}
-document.addEventListener('keydown', function(e) { if(e.key === 'Escape') closeLiveLog(); });
+        function buildBadgeClass(kind) {
+            return { running: 'badge-green', done: 'badge-green', failed: 'badge-red', cancelled: 'badge-gray', error: 'badge-red', queued: 'badge-gray' }[kind] || 'badge-gray';
+        }
+        function buildBadgeText(kind, tool) {
+            if (kind === 'running') return 'running' + (tool ? ' · ' + tool : '');
+            return kind;
+        }
 
-// ── Reset ──────────────────────────────────────────────────
-async function doReset() {
-    await fetch('/api/reset', {method:'POST'});
-    hostResources = {};
-    // Clear fields
-    ['hostIp','hostPass'].forEach(id => document.getElementById(id).value='');
-    document.getElementById('vmName').value='';
-    document.getElementById('memGb').value='';
-    document.getElementById('numCpu').value='';
-    document.getElementById('diskSize').value='';
-    document.getElementById('vmPass').value='';
-    document.getElementById('tLog').innerHTML='';
-    document.getElementById('resultArea').innerHTML='';
-    // Reset live log badge + modal (button stays visible)
-    const llBadgeR = document.getElementById('liveLogBadge');
-    if(llBadgeR) llBadgeR.textContent = '0';
-    const llDotR = document.getElementById('liveLogBtnDot');
-    if(llDotR) { llDotR.style.background = 'var(--text-3)'; llDotR.style.animation = 'none'; }
-    closeLiveLog();
-    const llLog = document.getElementById('liveLog');
-    if(llLog) llLog.innerHTML = '<span style="color:var(--text-3)">Waiting for log output...</span>';
-    liveLogLineCount = 0;
-    // Reset ring
-    const rf = document.getElementById('ringFill');
-    if(rf){ rf.style.strokeDashoffset='339.3'; rf.style.stroke=''; }
-    const rp = document.getElementById('ringPct');
-    if(rp){ rp.textContent='0%'; rp.style.color=''; }
-    const rs = document.getElementById('ringSteps');
-    if(rs) rs.textContent='0 / 0';
-    const ev = document.getElementById('etaVal');
-    if(ev) ev.textContent='calculating...';
-    document.getElementById('buildTitle').textContent='Building VM...';
-    document.getElementById('buildSub').textContent='Tools are executing on the remote host.';
-    document.getElementById('buildActions').style.display='none';
-    showError('connectError','');
-    showError('formError','');
-    goStep(1);
-}
-</script>
+        function createBuildCard(vmName, host) {
+            const wrap = $('buildsList');
+            $('buildsEmpty').style.display = 'none';
+            const el = document.createElement('div');
+            el.className = 'build-item';
+            el.innerHTML =
+                '<div class="build-item-head">' +
+                '<span class="build-item-name" title="Show this build in the console">' + esc(vmName || 'building…') + '</span>' +
+                (host ? '<span class="b-host">' + esc(host) + '</span>' : '') +
+                '<span class="badge badge-gray b-badge">queued</span>' +
+                '<div class="build-progress"><i style="width:0%"></i></div>' +
+                '<span class="b-pct muted">0%</span>' +
+                '<span class="spacer"></span>' +
+                '<button class="btn btn-xs btn-ghost build-log-toggle">Log</button>' +
+                '<button class="btn btn-xs btn-danger build-cancel" style="display:none">Cancel</button>' +
+                '</div>' +
+                '<div class="build-log"></div>';
+            wrap.appendChild(el);
+            const entry = {
+                id: null, vmName: vmName || null, host: host || null, es: null, active: true,
+                el: el, badgeEl: el.querySelector('.b-badge'),
+                barEl: el.querySelector('.build-progress i'),
+                pctEl: el.querySelector('.b-pct'),
+                logEl: el.querySelector('.build-log'),
+                cancelEl: el.querySelector('.build-cancel'),
+                lines: [], events: [], progress: 0, total: 0,
+            };
+            el.querySelector('.build-item-name').addEventListener('click', () => { if (entry.id) focusBuild(entry.id); });
+            el.querySelector('.build-log-toggle').addEventListener('click', () => {
+                const open = entry.logEl.classList.toggle('open');
+                el.querySelector('.build-log-toggle').textContent = open ? 'Hide log' : 'Log';
+            });
+            entry.cancelEl.addEventListener('click', () => cancelBuild(entry.id));
+            return entry;
+        }
+
+        function cardLogLine(entry, text, kind) {
+            if (!text) return;
+            const cls = (kind === 'err') ? 'l-err' : (kind === 'warn' ? 'l-warn' : (kind === 'ok' ? 'l-ok' : ''));
+            entry.lines.push((cls ? '<span class="' + cls + '">' : '') + esc(text) + (cls ? '</span>' : ''));
+            if (entry.lines.length > 400) entry.lines.splice(0, entry.lines.length - 400);
+            entry.logEl.innerHTML = entry.lines.join('\n');
+            entry.logEl.scrollTop = entry.logEl.scrollHeight;
+        }
+
+        function updateCard(entry, d) {
+            const kind = ({ running: 'running', retry: 'running', done: 'done', complete: 'done', failed: 'failed', cancelled: 'cancelled', error: 'error' })[d.type] || null;
+            if (kind) {
+                entry.badgeEl.textContent = buildBadgeText(kind, d.tool || (d.type === 'complete' ? '' : ''));
+                entry.badgeEl.className = 'badge b-badge ' + buildBadgeClass(kind);
+                entry.el.classList.toggle('done', kind === 'done' || kind === 'failed' || kind === 'cancelled' || kind === 'error');
+                if (kind === 'done') { entry.badgeEl.textContent = 'complete'; }
+            }
+            if (d.type === 'progress' && d.percent != null) {
+                entry.progress = d.percent;
+                entry.barEl.style.width = Math.min(100, d.percent) + '%';
+                entry.pctEl.textContent = Math.min(100, Math.round(d.percent)) + '%';
+            }
+            if (d.type === 'start') entry.total = d.total || 0;
+            const line = d.line || (d.type === 'running' ? '▶ ' + (d.tool || '') + (d.attempt > 1 ? ' (retry ' + d.attempt + ')' : '') : '') ||
+                (d.type === 'done' ? '✅ ' + (d.tool || '') + ' completed' : '') ||
+                (d.type === 'retry' ? '⚠ ' + (d.tool || '') + ' failed — retrying: ' + (d.error || '') : '') ||
+                (d.type === 'complete' ? '✅ VM ' + (d.vm_name || '') + ' is ready' + (d.vm_ip ? ' @ ' + d.vm_ip : '') : '') ||
+                (d.type === 'failed' ? '✗ Build failed — ' + (d.error || '') : '') ||
+                (d.type === 'cancelled' ? '■ Build cancelled' : '') ||
+                (d.type === 'error' ? '✗ ' + (d.msg || d.error || 'Error') : '');
+            cardLogLine(entry, line, d.type === 'failed' || d.type === 'error' || d.type === 'cancelled' ? 'err' : (d.type === 'retry' ? 'warn' : (d.type === 'done' || d.type === 'complete' ? 'ok' : '')));
+        }
+
+        function cancelBuild(buildId) {
+            const entry = state.builds[buildId];
+            if (entry) {
+                entry.cancelEl.disabled = true;
+                entry.cancelEl.textContent = 'cancelling…';
+            }
+            apiFetch('/api/cancel', { method: 'POST', body: JSON.stringify({ build_id: buildId }) }).catch(() => {});
+        }
+
+        function handleBuildEvent(buildId, d) {
+            let entry = state.builds[buildId];
+            if (d.type === 'build_id') {
+                if (entry && entry.id === null) {
+                    // a pending card (started via startBuild) got its server id
+                    entry.id = d.build_id;
+                    entry.vmName = d.vm_name;
+                    entry.el.querySelector('.build-item-name').textContent = d.vm_name;
+                    state.builds[d.build_id] = entry;
+                    delete state.builds[buildId];
+                    entry.cancelEl.style.display = 'inline-flex';
+                    focusBuild(d.build_id);
+                } else if (!entry) {
+                    // re-attach stream or late finalize — build a fresh card
+                    entry = createBuildCard(d.vm_name, d.host_ip);
+                    entry.id = d.build_id;
+                    entry.vmName = d.vm_name;
+                    state.builds[d.build_id] = entry;
+                    entry.cancelEl.style.display = 'inline-flex';
+                    focusBuild(d.build_id);
+                }
+            }
+            if (d.host_ip) {
+                entry.host = d.host_ip;
+                let hostEl = entry.el.querySelector('.b-host');
+                if (!hostEl) {
+                    hostEl = document.createElement('span');
+                    hostEl.className = 'b-host';
+                    entry.el.querySelector('.build-item-name').after(hostEl);
+                }
+                hostEl.textContent = d.host_ip;
+            }
+            if (!entry) return;
+            updateCard(entry, d);
+            entry.events.push(d);
+            if (entry.events.length > 300) entry.events.splice(0, entry.events.length - 300);
+            if (d.type === 'complete' || d.type === 'failed' || d.type === 'cancelled' || d.type === 'error') {
+                entry.active = false;
+                if (entry.es) { entry.es.close(); entry.es = null; }
+                entry.cancelEl.style.display = 'none';
+            }
+            if (state.focused === buildId) handleEvent(d);
+        }
+
+        function focusBuild(buildId) {
+            const entry = state.builds[buildId];
+            if (!entry) return;
+            // stop draining the previously focused stream (build continues server-side)
+            if (state.focused && state.focused !== buildId) {
+                const prev = state.builds[state.focused];
+                if (prev && prev.es) { prev.es.close(); prev.es = null; }
+                if (prev) prev.el.classList.remove('focused');
+            }
+            state.focused = buildId;
+            if (entry.active && !entry.es) openEntryStream(entry);
+            state.es = entry.es;
+            state.buildActive = entry.active;
+            entry.el.classList.add('focused');
+            const focusEl = $('consoleFocus');
+            if (focusEl) { focusEl.textContent = 'viewing: ' + (entry.vmName || buildId); focusEl.classList.add('show'); }
+            // replay buffered events into the console
+            $('timeline').innerHTML = '';
+            $('stream').innerHTML = '';
+            $('streamEmpty').style.display = '';
+            state.plan = []; state.stepEls = [];
+            setRing(entry.progress);
+            setBadge('buildBadge', entry.active ? 'running' : (entry.badgeEl ? entry.badgeEl.textContent : 'idle'), entry.active ? 'badge-green' : 'badge-gray');
+            entry.events.forEach(d => { if (d.type !== 'build_id') handleEvent(d); });
+            if (!entry.active) { $('cancelBtn').style.display = 'none'; }
+        }
+
+        function openEntryStream(entry) {
+            // (Re-)attach a live SSE stream to an existing build card. Used when
+            // a build is created, when focus switches back to a backgrounded
+            // build, and when the page restores running builds after a refresh.
+            if (entry.es || !entry.active) return;
+            const es = new EventSource('/api/execute_stream/' + encodeURIComponent(entry.id) + '?session=' + encodeURIComponent(SESSION_TOKEN));
+            entry.es = es;
+            es.onmessage = (e) => {
+                let d = null;
+                try { d = JSON.parse(e.data); } catch (err) { return; }
+                handleBuildEvent(entry.id, d);
+            };
+            es.onerror = () => {
+                es.close();
+                if (entry.es === es) entry.es = null;
+            };
+        }
+
+        function attachBuild(buildId, vmName, host) {
+            const entry = createBuildCard(vmName, host);
+            entry.id = buildId;
+            entry.vmName = vmName;
+            state.builds[buildId] = entry;
+            return entry;
+        }
+
+        async function loadBuilds() {
+            try {
+                const d = await apiFetch('/api/builds');
+                const builds = d.builds || [];
+                builds.forEach(b => {
+                    if (state.builds[b.build_id]) return;
+                    const entry = attachBuild(b.build_id, b.vm_name, b.host_ip);
+                    if (b.stage === 'running') {
+                        entry.cancelEl.style.display = 'inline-flex';
+                        openEntryStream(entry);
+                    } else {
+                        // finished while we were away — show the real outcome
+                        const outcome = b.outcome || 'done';
+                        entry.active = false;
+                        entry.el.classList.add('done');
+                        entry.badgeEl.textContent = outcome === 'complete' ? 'complete' : outcome;
+                        entry.badgeEl.className = 'badge b-badge ' + buildBadgeClass(outcome);
+                        if (b.progress) {
+                            entry.barEl.style.width = Math.min(100, b.progress) + '%';
+                            entry.pctEl.textContent = Math.min(100, Math.round(b.progress)) + '%';
+                        }
+                    }
+                });
+                const running = builds.filter(b => b.stage === 'running');
+                if (running.length) focusBuild(running[0].build_id);
+                if (builds.length) $('buildsEmpty').style.display = 'none';
+            } catch (e) { /* not connected yet */ }
+        }
+
+        function card(cls, title, bodyHtml, meta) {
+            const el = document.createElement('div');
+            el.className = 'agent-card ' + cls;
+            const dotCls = { ok: 'd-ok', err: 'd-err', thinking: 'd-think', retry: 'd-think', info: 'd-info' }[cls] || 'd-info';
+            el.innerHTML =
+                '<div class="ac-head"><span class="dot ' + dotCls + (cls === 'thinking' ? ' d-spin' : '') + '"></span>' + esc(title) +
+                (meta ? '<span class="ac-meta">' + esc(meta) + '</span>' : '') + '</div>' +
+                (bodyHtml ? '<div class="ac-body">' + bodyHtml + '</div>' : '');
+            return el;
+        }
+
+        function streamAdd(cls, title, bodyHtml, meta) {
+            hideStreamEmpty();
+            const s = $('stream');
+            s.appendChild(card(cls, title, bodyHtml, meta));
+            // A 1-hour build can emit thousands of log lines — prune old cards
+            // so the console stays fast while the build runs.
+            while (s.children.length > 150) s.removeChild(s.firstChild);
+            scrollConsole();
+        }
+
+        function hideStreamEmpty() {
+            const e = $('streamEmpty');
+            if (e) e.style.display = 'none';
+        }
+        function scrollConsole() {
+            const c = $('consoleScroll');
+            if (c) c.scrollTop = c.scrollHeight;
+        }
+
+        // ── session restore on load ──────────────────────
+        function showConnectedHost(ip, resources) {
+            state.connected = true;
+            state.hostIp = ip || state.hostIp;
+            const form = $('connectForm'), con = $('hostConnected');
+            if (form) form.style.display = 'none';
+            if (con) con.style.display = 'block';
+            setBadge('connBadge', 'connected', 'badge-green');
+            markStep(1, 'done');
+            markStep(2, 'active');
+            if (ip) $('connHostLabel').textContent = ip;
+            if (resources && Object.keys(resources).length) {
+                $('hostSummary').style.display = 'block';
+                renderHostStats(resources);
+            }
+            if (ip) $('footHost').textContent = 'host: ' + ip;
+        }
+
+        $('switchHostBtn').addEventListener('click', () => {
+            $('hostConnected').style.display = 'none';
+            $('connectForm').style.display = 'block';
+            setBadge('connBadge', 'switch host', 'badge-gray');
+        });
+
+        async function restoreSession() {
+            try {
+                const d = await apiFetch('/api/session_status');
+                if (d.connected) {
+                    showConnectedHost(d.host_ip);
+                    if (d.agent_mode) state.agentMode = true;
+                    $('agentModeToggle').checked = state.agentMode;
+                    loadVms(); loadHealth();
+                    startPolling();
+                }
+                if (d.vm_name) $('vmName').value = d.vm_name;
+            } catch (e) { /* not connected yet — fine */ }
+        }
+
+        // ── Step 1 · connect ─────────────────────────────
+        $('connectBtn').addEventListener('click', async () => {
+            const btn = $('connectBtn');
+            const hostIp = $('hostIp').value.trim();
+            const username = $('hostUser').value.trim();
+            const password = $('hostPass').value;
+            if (!hostIp || !username) {
+                showErr('connectError', 'Host IP and SSH user are required.');
+                return;
+            }
+            hideErr('connectError');
+            btn.classList.add('btn-busy');
+            btn.disabled = true;
+            $('connectStatus').textContent = 'Connecting…';
+            try {
+                const d = await apiFetch('/api/connect', {
+                    method: 'POST',
+                    body: JSON.stringify({ host_ip: hostIp, username, password }),
+                });
+                showConnectedHost(hostIp, d.resources || {});
+                $('connectStatus').textContent = '✓ Connected — host scanned';
+                streamAdd('ok', 'Host connected', 'SSH to <b>' + esc(hostIp) + '</b> established. Host resources fetched.', hostIp);
+                loadVms(); loadHealth();
+                startPolling();
+            } catch (err) {
+                showErr('connectError', err.message);
+                $('connectStatus').textContent = '';
+            } finally {
+                btn.classList.remove('btn-busy');
+                btn.disabled = false;
+            }
+        });
+
+        function renderHostStats(r) {
+            const tiles = [
+                ['RAM', fmt(r.ram_total_gb) + ' GB', 'total', r.ram_total_gb ? Math.round((1 - (r.ram_free_gb / r.ram_total_gb)) * 100) : 0],
+                ['CPU', fmt(r.cpu_count) + ' cores', 'total', r.cpu_count ? Math.round((r.cpu_allocated / r.cpu_count) * 100) : 0],
+                ['Disk', fmt(r.disk_total_gb) + ' GB', 'total', r.disk_total_gb ? Math.round((1 - (r.disk_free_gb / r.disk_total_gb)) * 100) : 0],
+            ];
+            $('hostStats').innerHTML = tiles.map(t =>
+                '<div class="stat"><div class="k">' + t[0] + '</div>' +
+                '<div class="v">' + esc(t[1]) + '</div>' +
+                '<div class="meter"><i style="width:' + Math.min(100, t[3]) + '%"></i></div></div>'
+            ).join('');
+        }
+
+        // ── natural-language request parsing ─────────────
+        async function parseRequest(text) {
+            if (!text.trim()) return;
+            hideErr('formError');
+            $('parseBtn').classList.add('btn-busy');
+            $('parseBtn').disabled = true;
+            try {
+                const d = await apiFetch('/api/parse_request', {
+                    method: 'POST',
+                    body: JSON.stringify({ message: text }),
+                });
+                const c = d.config || {};
+                if (c.vm_name) $('vmName').value = c.vm_name;
+                if (c.memory_gb) $('memGb').value = c.memory_gb;
+                if (c.num_cpu) $('numCpu').value = c.num_cpu;
+                if (c.disk_size) $('diskSize').value = c.disk_size;
+                if (c.aic_cards != null) $('aicCards').value = c.aic_cards;
+                if (c.vm_type) $('vmType').value = c.vm_type;
+                if (c.acs_state) { $('acsField').style.display = 'block'; $('acsState').value = c.acs_state; }
+                if (c.vm_username) $('vmUser').value = c.vm_username;
+                if (c.vm_password) $('vmPass').value = c.vm_password;
+                if (c.os_image) $('osImage').value = c.os_image;
+                if (c.vm_type === 'p2p') $('acsField').style.display = 'block';
+                const noteEl = $('parseNote');
+                noteEl.textContent = (d.used_llm ? '✓ Parsed by Claude. ' : '') + (d.note || '') + ' Review the fields, then build.';
+                noteEl.classList.add('show');
+                setBadge('configBadge', 'parsed', 'badge-blue');
+                markStep(2, 'active');
+                $('sec2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                streamAdd('info', 'Request parsed', 'Extracted VM config from your request.', '');
+            } catch (err) {
+                showErr('formError', err.message);
+            } finally {
+                $('parseBtn').classList.remove('btn-busy');
+                $('parseBtn').disabled = false;
+            }
+        }
+
+        $('parseBtn').addEventListener('click', () => parseRequest($('nlInput').value));
+        $('nlInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                parseRequest($('nlInput').value);
+            }
+        });
+        document.querySelectorAll('#chips .chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                $('nlInput').value = chip.dataset.sample;
+                parseRequest(chip.dataset.sample);
+            });
+        });
+
+        // ── templates ────────────────────────────────────
+        async function loadTemplates() {
+            try {
+                const d = await apiFetch('/api/templates');
+                const sel = $('templateSelect');
+                sel.innerHTML = '<option value="">— custom configuration —</option>' +
+                    (d.templates || []).map(t => '<option value="' + esc(t.name) + '">' + esc(t.name) + '</option>').join('');
+            } catch (e) { /* templates unavailable — ignore */ }
+        }
+
+        $('templateSelect').addEventListener('change', async () => {
+            const name = $('templateSelect').value;
+            if (!name) return;
+            try {
+                const d = await apiFetch('/api/templates');
+                const t = (d.templates || []).find(x => x.name === name);
+                if (!t || !t.config) return;
+                const c = t.config;
+                if (c.vm_name) $('vmName').value = c.vm_name;
+                if (c.memory_gb) $('memGb').value = c.memory_gb;
+                if (c.num_cpu) $('numCpu').value = c.num_cpu;
+                if (c.disk_size) $('diskSize').value = c.disk_size;
+                if (c.aic_cards != null) $('aicCards').value = c.aic_cards;
+                if (c.vm_type) $('vmType').value = c.vm_type;
+                if (c.acs_state) { $('acsField').style.display = 'block'; $('acsState').value = c.acs_state; }
+                if (c.vm_username) $('vmUser').value = c.vm_username;
+                if (c.debug) $('debugMode').value = c.debug;
+                setBadge('configBadge', 'template: ' + name, 'badge-blue');
+                streamAdd('info', 'Template applied', 'Preset <b>' + esc(name) + '</b> loaded into the form.', '');
+            } catch (e) { /* ignore */ }
+        });
+
+        $('vmType').addEventListener('change', () => {
+            $('acsField').style.display = $('vmType').value === 'p2p' ? 'block' : 'none';
+        });
+
+        // ── PCI preview ──────────────────────────────────
+        $('previewBtn').addEventListener('click', async () => {
+            hideErr('formError');
+            $('previewStatus').textContent = 'Scanning PCI devices…';
+            $('pciPreview').classList.remove('show');
+            try {
+                const d = await apiFetch('/api/preview_config', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        vm_name: $('vmName').value.trim() || 'preview',
+                        aic_cards: $('aicCards').value || '',
+                        pci_group: 1,
+                    }),
+                });
+                const devs = d.pci_devices || [];
+                const rows = devs.map(x =>
+                    '<tr><td class="mono">' + esc(x.address || '') + '</td><td>' + esc(x.name || '') + '</td>' +
+                    '<td>' + (x.free ? '<span class="state-pill state-running">free</span>' : '<span class="state-pill state-shut">in use</span>') + '</td></tr>'
+                ).join('');
+                $('pciPreview').innerHTML =
+                    '<div class="result-box">' +
+                    '<div style="font-weight:700;font-size:13px">PCI assignment preview' +
+                    (d.iommu_group ? ' — IOMMU group ' + esc(d.iommu_group) : '') + '</div>' +
+                    '<div class="hint" style="margin:6px 0 10px">' + fmt(d.free_groups_count) + ' free IOMMU groups detected.</div>' +
+                    '<div class="table-wrap"><table><thead><tr><th>Address</th><th>Device</th><th>Status</th></tr></thead><tbody>' +
+                    (rows || '<tr><td colspan="3" class="vm-empty">No devices reported</td></tr>') +
+                    '</tbody></table></div></div>';
+                $('pciPreview').classList.add('show');
+                $('previewStatus').textContent = '';
+            } catch (err) {
+                $('previewStatus').textContent = '';
+                showErr('formError', 'PCI preview: ' + err.message);
+            }
+        });
+
+        // ── Step 3 · build (SSE) ────────────────────────
+        function buildParams() {
+            const p = new URLSearchParams();
+            const v = (id, def) => $(id).value.trim() || def;
+            p.set('vm_name', v('vmName', 'test01'));
+            p.set('vm_username', v('vmUser', 'ubuntu'));
+            p.set('vm_password', $('vmPass').value.trim());
+            p.set('vm_type', $('vmType').value);
+            if ($('acsField').style.display !== 'none') p.set('acs_state', $('acsState').value);
+            p.set('debug', $('debugMode').value);
+            p.set('os_image', v('osImage', ''));
+            p.set('memory_gb', v('memGb', ''));
+            p.set('num_cpu', v('numCpu', ''));
+            p.set('disk_size', v('diskSize', '100G'));
+            p.set('aic_cards', v('aicCards', ''));
+            p.set('agent_mode', state.agentMode ? '1' : '0');
+            return p;
+        }
+
+        function renderTimeline(plan) {
+            state.plan = plan || [];
+            state.stepEls = [];
+            const tl = $('timeline');
+            tl.innerHTML = '';
+            state.plan.forEach((tool, i) => {
+                const step = document.createElement('div');
+                step.className = 'tl-step';
+                step.innerHTML =
+                    '<div class="tl-dot"></div>' +
+                    '<div class="tl-body"><div class="tl-tool">' + esc(tool) + '</div>' +
+                    '<div class="tl-sub">queued</div><div class="tl-narr"></div>' +
+                    '<div class="tl-bar"><i></i></div></div>';
+                tl.appendChild(step);
+                state.stepEls.push(step);
+            });
+        }
+
+        function setStep(i, cls, sub) {
+            const step = state.stepEls[i];
+            if (!step) return;
+            step.className = 'tl-step ' + cls;
+            if (sub !== undefined) step.querySelector('.tl-sub').textContent = sub;
+            if (cls === 'done') {
+                const bar = step.querySelector('.tl-bar i');
+                if (bar) bar.style.width = '100%';
+            }
+        }
+
+        function setRing(pct) {
+            const p = Math.max(0, Math.min(100, Math.round(pct || 0)));
+            $('ringFill').style.strokeDashoffset = String(326.7 * (1 - p / 100));
+            $('ringPct').textContent = p + '%';
+        }
+
+        function endBuild() {
+            state.buildActive = false;
+            if (state.es) { state.es.close(); state.es = null; }
+            const foc = state.focused ? state.builds[state.focused] : null;
+            if (foc) { foc.active = false; foc.es = null; foc.cancelEl.style.display = 'none'; }
+            $('cancelBtn').style.display = 'none';
+            $('etaVal').textContent = '';
+            if ($('buildBtn')) $('buildBtn').classList.remove('btn-busy');
+        }
+
+        function handleEvent(d) {
+            switch (d.type) {
+                case 'start':
+                    state.buildActive = true;
+                    renderTimeline(d.plan);
+                    hideStreamEmpty();
+                    setBadge('agentBadge', d.agent_mode ? 'agent mode' : 'classic mode', d.agent_mode ? 'badge-green' : 'badge-blue');
+                    setBadge('buildBadge', 'running', 'badge-green');
+                    $('consoleState').textContent = 'planning';
+                    $('consoleState').className = 'console-state run';
+                    markStep(3, 'active');
+                    $('cancelBtn').style.display = 'inline-flex';
+                    $('buildHint').textContent = 'Build in progress — watch the agent decide each step.';
+                    streamAdd('info', 'Build started', 'Plan ready: <b>' + esc((d.plan || []).length) + '</b> steps.', '');
+                    break;
+                case 'agent_start':
+                    state.buildActive = true;
+                    renderTimeline(d.plan);
+                    hideStreamEmpty();
+                    setBadge('agentBadge', 'agent mode', 'badge-green');
+                    setBadge('buildBadge', 'running', 'badge-green');
+                    $('consoleState').textContent = 'thinking';
+                    $('consoleState').className = 'console-state think';
+                    markStep(3, 'active');
+                    $('cancelBtn').style.display = 'inline-flex';
+                    streamAdd('thinking', 'Agent is planning', 'Claude is building a step-by-step plan for this VM…', '');
+                    break;
+                case 'running': {
+                    const i = (d.step || 1) - 1;
+                    setStep(i, 'active', 'attempt ' + (d.attempt || 1));
+                    setBadge('buildBadge', 'running · ' + esc(d.tool || ''), 'badge-green');
+                    $('consoleState').textContent = 'working';
+                    $('consoleState').className = 'console-state think';
+                    streamAdd('thinking', 'Claude is running ' + (d.tool || ''), 'Executing step ' + (d.step || '') + (d.attempt > 1 ? ' (retry ' + d.attempt + ')' : ''), d.tool || '');
+                    break;
+                }
+                case 'progress':
+                    setRing(d.percent);
+                    $('etaVal').textContent = 'step ' + (d.step || 0) + ' / ' + (d.total || 0);
+                    break;
+                case 'done': {
+                    const i = (d.step || 1) - 1;
+                    setStep(i, 'done', 'completed');
+                    const narr = d.narration || '';
+                    if (narr && state.stepEls[i]) state.stepEls[i].querySelector('.tl-narr').textContent = narr;
+                    setBadge('buildBadge', 'running', 'badge-green');
+                    $('consoleState').textContent = 'working';
+                    $('consoleState').className = 'console-state run';
+                    streamAdd('ok', d.tool + ' completed', narr ? esc(narr) : 'Step succeeded.', d.tool || '');
+                    break;
+                }
+                case 'retry': {
+                    const i = Math.max(0, (d.step || 1) - 1);
+                    if (state.stepEls[i]) setStep(i, 'active', 'retrying…');
+                    $('consoleState').textContent = 'recovering';
+                    $('consoleState').className = 'console-state think';
+                    streamAdd('retry', d.tool + ' failed — retrying', 'Attempt ' + (d.attempt || 1) + ': ' + esc(d.error || ''), d.tool || '');
+                    break;
+                }
+                case 'log':
+                    if (d.line) streamAdd('info', esc(d.line), '', '');
+                    break;
+                case 'failed': {
+                    const i = Math.max(0, (d.step || 1) - 1);
+                    if (state.stepEls[i]) setStep(i, 'failed', 'failed');
+                    setBadge('buildBadge', 'failed', 'badge-red');
+                    setBadge('agentBadge', 'failed', 'badge-red');
+                    $('consoleState').textContent = 'failed';
+                    $('consoleState').className = 'console-state err';
+                    streamAdd('err', 'Build failed — ' + (d.tool || 'agent'), esc(d.error || 'Unknown error'), d.tool || '');
+                    endBuild();
+                    break;
+                }
+                case 'complete': {
+                    setRing(100);
+                    setBadge('buildBadge', 'complete', 'badge-green');
+                    setBadge('agentBadge', 'done', 'badge-green');
+                    $('consoleState').textContent = 'complete';
+                    $('consoleState').className = 'console-state run';
+                    markStep(3, 'done');
+                    $('resultName').textContent = '✓ ' + d.vm_name + ' is ready';
+                    $('resultMeta').innerHTML =
+                        (d.vm_ip ? '<span>IP <b class="mono">' + esc(d.vm_ip) + '</b></span>' : '') +
+                        (d.vm_mac ? '<span>MAC <b class="mono">' + esc(d.vm_mac) + '</b></span>' : '') +
+                        (d.username ? '<span>user <b class="mono">' + esc(d.username) + '</b></span>' : '');
+                    $('resultArea').classList.add('show');
+                    window._lastBuiltVm = d.vm_name;
+                    streamAdd('ok', 'VM ready — ' + d.vm_name, (d.vm_ip ? 'Reachable at <b class="mono">' + esc(d.vm_ip) + '</b>.' : 'Build finished successfully.'), '');
+                    $('resultArea').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    endBuild();
+                    loadVms();
+                    break;
+                }
+                case 'cancelled': {
+                    setBadge('buildBadge', 'cancelled', 'badge-gray');
+                    setBadge('agentBadge', 'cancelled', 'badge-gray');
+                    $('consoleState').textContent = 'cancelled';
+                    $('consoleState').className = 'console-state err';
+                    streamAdd('err', 'Build cancelled', esc(d.msg || 'Cancelled by user.'), '');
+                    state.stepEls.forEach((s, i) => { if (!s.className.includes('done')) setStep(i, 'cancelled', 'cancelled'); });
+                    endBuild();
+                    break;
+                }
+                case 'error':
+                    setBadge('buildBadge', 'error', 'badge-red');
+                    $('consoleState').textContent = 'error';
+                    $('consoleState').className = 'console-state err';
+                    streamAdd('err', 'Error', esc(d.msg || d.error || 'Unknown error'), d.tool || '');
+                    endBuild();
+                    break;
+            }
+            scrollConsole();
+        }
+
+        function startBuild() {
+            hideErr('buildError');
+            // client-side validation mirroring the backend's REQUIRED_FIELDS
+            const missing = [];
+            if (!$('vmName').value.trim()) missing.push('VM name');
+            if (!$('memGb').value) missing.push('Memory');
+            if (!$('numCpu').value) missing.push('vCPUs');
+            if (!$('osImage').value.trim()) missing.push('OS image');
+            if (!$('vmPass').value) missing.push('VM password');
+            if (missing.length) {
+                showErr('buildError', 'Missing required fields: ' + missing.join(', '));
+                $('sec2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return;
+            }
+            // Each click starts a NEW build with its own card + stream — the
+            // button stays enabled so you can queue another VM while one runs.
+            const entry = createBuildCard($('vmName').value.trim(), state.hostIp);
+            entry._key = pendingId();
+            state.builds[entry._key] = entry;
+            entry.cancelEl.style.display = 'inline-flex';
+            $('buildBtn').classList.add('btn-busy');
+
+            const es = new EventSource('/api/execute?' + buildParams().toString() + '&session=' + encodeURIComponent(SESSION_TOKEN));
+            entry.es = es;
+            es.onmessage = (e) => {
+                let d = null;
+                try { d = JSON.parse(e.data); } catch (err) { return; }
+                // route by the card's current id (pending key until the server
+                // assigns a real build_id)
+                handleBuildEvent(entry.id || entry._key, d);
+            };
+            es.onerror = () => {
+                es.close();
+                if (entry.es === es) entry.es = null;
+                if (entry.active) {
+                    cardLogLine(entry, '✗ Stream dropped — check the server logs.', 'err');
+                    entry.active = false;
+                    entry.badgeEl.textContent = 'error';
+                    entry.badgeEl.className = 'badge b-badge badge-red';
+                    entry.cancelEl.style.display = 'none';
+                }
+            };
+        }
+
+        $('buildBtn').addEventListener('click', () => {
+            if (!state.connected) {
+                showErr('buildError', 'Connect to a host first (Step 1).');
+                return;
+            }
+            startBuild();
+        });
+
+        $('cancelBtn').addEventListener('click', () => {
+            // Cancels the build currently shown in the console (per-card
+            // Cancel buttons are available on every build in the list).
+            if (!state.focused) return;
+            $('cancelBtn').disabled = true;
+            $('etaVal').textContent = 'cancelling…';
+            cancelBuild(state.focused);
+        });
+
+        // ── VM inventory ─────────────────────────────────
+        let vmList = [];
+        let vmsLoading = false;
+
+        async function loadVms() {
+            if (vmsLoading) return;   // never stack overlapping refreshes
+            vmsLoading = true;
+            const tbody = $('vmTableBody');
+            try {
+                const d = await apiFetch('/api/list_vms');
+                vmList = d.vms || [];
+                $('vmCount').textContent = vmList.length + ' VM' + (vmList.length === 1 ? '' : 's') +
+                    (state.hostIp ? ' · host ' + state.hostIp : '');
+                $('vmEmpty').style.display = vmList.length ? 'none' : 'block';
+                renderVms();
+            } catch (e) {
+                tbody.innerHTML = '';
+                $('vmCount').textContent = '';
+                $('vmEmpty').style.display = 'block';
+                $('vmEmpty').textContent = 'Not connected to a host yet — ' + e.message;
+            } finally {
+                vmsLoading = false;
+            }
+        }
+
+        function renderVms() {
+            const tbody = $('vmTableBody');
+            tbody.innerHTML = vmList.map(vm => {
+                const running = /run/i.test(vm.state || '');
+                const s = vm.specs || {};
+                const stateCls = running ? 'state-running' : (/shut/i.test(vm.state || '') ? 'state-shut' : 'state-unknown');
+                const stateLabel = running ? 'running' : (/shut/i.test(vm.state || '') ? 'shut off' : (vm.state || 'unknown'));
+                return '<tr data-vm="' + esc(vm.name) + '">' +
+                    '<td><input type="checkbox" class="check vm-check" data-name="' + esc(vm.name) + '"></td>' +
+                    '<td class="vm-name-cell">' + esc(vm.name) + '</td>' +
+                    '<td><span class="state-pill ' + stateCls + '">' + esc(stateLabel) + '</span></td>' +
+                    '<td>' + fmt(s.vcpus) + '</td>' +
+                    '<td>' + fmt(s.memory) + '</td>' +
+                    '<td>' + fmt(s.disk) + '</td>' +
+                    '<td class="vm-ip">' + esc(s.ip || '—') + '</td>' +
+                    '<td><div class="cell-actions">' +
+                    '<button class="btn btn-xs vm-toggle" data-name="' + esc(vm.name) + '" data-action="' + (running ? 'shutdown' : 'start') + '">' + (running ? '■ Stop' : '▶ Start') + '</button>' +
+                    '<button class="btn btn-xs btn-ghost vm-log" data-name="' + esc(vm.name) + '">Log</button>' +
+                    '<button class="btn btn-xs btn-danger vm-del" data-name="' + esc(vm.name) + '">Delete</button>' +
+                    '</div></td></tr>';
+            }).join('');
+
+            tbody.querySelectorAll('.vm-toggle').forEach(b => b.addEventListener('click', async () => {
+                b.disabled = true;
+                try {
+                    await apiFetch('/api/toggle_vm', { method: 'POST', body: JSON.stringify({ vm_name: b.dataset.name, action: b.dataset.action }) });
+                    await loadVms();
+                } catch (err) { alert(err.message); b.disabled = false; }
+            }));
+            tbody.querySelectorAll('.vm-del').forEach(b => b.addEventListener('click', async () => {
+                if (!confirm('Permanently delete VM "' + b.dataset.name + '" including its disks?')) return;
+                try {
+                    await apiFetch('/api/delete_vm', { method: 'POST', body: JSON.stringify({ vm_name: b.dataset.name }) });
+                    await loadVms();
+                } catch (err) { alert(err.message); }
+            }));
+            tbody.querySelectorAll('.vm-log').forEach(b => b.addEventListener('click', () => openLog(b.dataset.name)));
+            updateBulkUI();
+        }
+
+        function selectedVms() {
+            return Array.from(document.querySelectorAll('.vm-check:checked')).map(c => c.dataset.name);
+        }
+        function updateBulkUI() {
+            const n = selectedVms().length;
+            $('bulkDeleteBtn').style.display = n ? 'inline-flex' : 'none';
+            $('bulkDeleteBtn').textContent = 'Delete selected (' + n + ')';
+        }
+
+        $('refreshVms').addEventListener('click', loadVms);
+        $('checkAll').addEventListener('change', (e) => {
+            document.querySelectorAll('.vm-check').forEach(c => { c.checked = e.target.checked; });
+            updateBulkUI();
+        });
+        document.addEventListener('change', (e) => { if (e.target.classList && e.target.classList.contains('vm-check')) updateBulkUI(); });
+
+        $('bulkDeleteBtn').addEventListener('click', async () => {
+            const names = selectedVms();
+            if (!names.length) return;
+            if (!confirm('Delete ' + names.length + ' selected VM(s) including disks?')) return;
+            try {
+                await apiFetch('/api/bulk_delete', { method: 'POST', body: JSON.stringify({ vm_names: names }) });
+                await loadVms();
+            } catch (err) { alert(err.message); }
+        });
+
+        // ── health panel ─────────────────────────────────
+        let healthLoading = false;
+        async function loadHealth() {
+            if (healthLoading) return;   // never stack overlapping refreshes
+            healthLoading = true;
+            try {
+                const d = await apiFetch('/api/health');
+                const r = d.host_resources || {};
+                const mk = (k, v, pct) =>
+                    '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + '</div>' +
+                    '<div class="meter"><i style="width:' + Math.min(100, Math.round(pct || 0)) + '%"></i></div></div>';
+                const bars =
+                    mk('RAM', fmt(r.ram_total_gb) + ' GB', r.ram_total_gb ? (1 - r.ram_free_gb / r.ram_total_gb) * 100 : 0) +
+                    mk('CPU', fmt(r.cpu_count) + ' cores', r.cpu_count ? (r.cpu_allocated / r.cpu_count) * 100 : 0) +
+                    mk('Disk', fmt(r.disk_total_gb) + ' GB', r.disk_total_gb ? (1 - r.disk_free_gb / r.disk_total_gb) * 100 : 0);
+                const states = d.vm_states || {};
+                const vmTiles = Object.keys(states).map(k =>
+                    '<div class="stat"><div class="k">' + esc(k) + '</div><div class="v">' + states[k] + '</div></div>'
+                ).join('') || '<div class="stat"><div class="k">VMs</div><div class="v">0</div></div>';
+                $('healthGrid').innerHTML =
+                    '<div style="display:flex;flex-direction:column;gap:10px">' + bars + '</div>' +
+                    '<div><div class="stats" style="grid-template-columns:repeat(2,1fr)">' + vmTiles + '</div>' +
+                    '<div class="stat" style="margin-top:10px"><div class="k">qmonitor-proxy</div>' +
+                    '<div class="v" style="font-size:14px">' + (d.qmonitor_active ? '✓ active' : '✗ inactive') + '</div></div></div>';
+                $('healthNote').textContent = 'Total VMs: ' + fmt(d.total_vms) + ' · active sessions: ' + fmt(d.active_sessions);
+            } catch (e) {
+                $('healthGrid').innerHTML = '';
+                $('healthNote').textContent = 'Host health unavailable — ' + e.message;
+            } finally {
+                healthLoading = false;
+            }
+        }
+        $('refreshHealth').addEventListener('click', loadHealth);
+
+        // ── log modal ────────────────────────────────────
+        function colorLine(line) {
+            if (/error|failed|✗|❌/i.test(line)) return '<span class="l-err">' + esc(line) + '</span>';
+            if (/warn|⚠|retry/i.test(line)) return '<span class="l-warn">' + esc(line) + '</span>';
+            if (/✅|✓|success|complete/i.test(line)) return '<span class="l-ok">' + esc(line) + '</span>';
+            return esc(line);
+        }
+
+        async function openLog(vmName) {
+            if (!vmName) return;
+            $('logVmName').textContent = vmName;
+            $('logDownloadBtn').onclick = () => { window.location.href = '/api/download_log/' + encodeURIComponent(vmName); };
+            $('logLines').textContent = 'Loading…';
+            $('liveLogModal').classList.add('show');
+            try {
+                const d = await apiFetch('/api/logs/tail/' + encodeURIComponent(vmName));
+                const lines = d.lines || [];
+                $('logLines').innerHTML = lines.map(colorLine).join('\n') || 'No log lines yet.';
+            } catch (e) {
+                $('logLines').textContent = 'Log unavailable: ' + e.message;
+            }
+        }
+
+        $('liveLogModal').querySelectorAll('[data-close]').forEach(el =>
+            el.addEventListener('click', () => $('liveLogModal').classList.remove('show')));
+        $('liveLogBtn').addEventListener('click', () => openLog(window._lastBuiltVm || $('vmName').value.trim() || 'latest'));
+        $('resultLogBtn').addEventListener('click', () => { if (window._lastBuiltVm) openLog(window._lastBuiltVm); });
+
+        // ── reset / misc ─────────────────────────────────
+        $('resetBtn').addEventListener('click', async () => {
+            stopPolling();
+            try { await apiFetch('/api/reset', { method: 'POST', body: '{}' }); } catch (e) { /* ignore */ }
+            window.location.reload();
+        });
+
+        $('agentModeToggle').addEventListener('change', (e) => {
+            state.agentMode = e.target.checked;
+            streamAdd('info', 'Agent mode ' + (state.agentMode ? 'enabled' : 'disabled'),
+                state.agentMode ? 'Claude will decide each step dynamically.' : 'Fixed classic pipeline will run.', '');
+        });
+
+        // ── init ─────────────────────────────────────────
+        loadTemplates();
+        restoreSession();
+        loadBuilds();
+    })();
+    </script>
 </body>
 </html>

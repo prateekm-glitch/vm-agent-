@@ -10,12 +10,20 @@ import httpx
 
 from settings import ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, MODEL
 
-# One client for the whole app.
-client = anthropic.Anthropic(
-    api_key=ANTHROPIC_API_KEY,
-    base_url=ANTHROPIC_BASE_URL,
-    http_client=httpx.Client(verify=False),  # internal gateway; SSL verify off
-)
+# One client for the whole app — created lazily so the app can boot even
+# when ANTHROPIC_API_KEY is not set yet (LLM calls fail at call time instead).
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(
+            api_key=ANTHROPIC_API_KEY,
+            base_url=ANTHROPIC_BASE_URL,
+            http_client=httpx.Client(verify=False),  # internal gateway; SSL verify off
+        )
+    return _client
 
 
 def strip_code_fences(text: str) -> str:
@@ -32,7 +40,7 @@ def strip_code_fences(text: str) -> str:
 
 def ask(prompt: str, max_tokens: int = 500, temperature: float = 0.0) -> str:
     """Send a single-user-message prompt and return the model's text."""
-    response = client.messages.create(
+    response = _get_client().messages.create(
         model=MODEL,
         max_tokens=max_tokens,
         temperature=temperature,
@@ -85,4 +93,4 @@ def ask_with_tools(
     if system_prompt:
         kwargs["system"] = system_prompt
 
-    return client.messages.create(**kwargs)
+    return _get_client().messages.create(**kwargs)

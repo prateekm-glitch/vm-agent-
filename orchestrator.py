@@ -241,7 +241,7 @@ def _execute_tool_with_overrides(tool_name: str, tool_input: dict, config, state
     return result
 
 
-def run_agentic_loop(config, state: AgentState, stream_callback=None) -> AgentState:
+def run_agentic_loop(config, state: AgentState, stream_callback=None, should_cancel=None) -> AgentState:
     """Run the Phase 2 looping agentic loop.
     
     HOW IT WORKS:
@@ -259,6 +259,8 @@ def run_agentic_loop(config, state: AgentState, stream_callback=None) -> AgentSt
         config:          VMConfig with all VM parameters
         state:           AgentState for sharing data between tools
         stream_callback: Optional function(event_type, data) for SSE streaming
+        should_cancel:   Optional callable returning True when the user has
+                         requested cancellation (checked between iterations)
     
     Returns:
         The final AgentState
@@ -295,6 +297,14 @@ def run_agentic_loop(config, state: AgentState, stream_callback=None) -> AgentSt
     completed_iterations = 0
     for iteration in range(1, MAX_AGENT_ITERATIONS + 1):
         print(f"\n[AGENT] Iteration {iteration}/{MAX_AGENT_ITERATIONS}", flush=True)
+
+        # ── User cancelled? Stop cleanly between iterations ───
+        if should_cancel and should_cancel():
+            print("[AGENT] ⏹ Cancelled by user", flush=True)
+            state.mark_failed("agent_loop", "Cancelled by user")
+            if stream_callback:
+                stream_callback("agent_cancelled", {"reason": "Cancelled by user"})
+            return state
 
         # ── Ask Claude what to do next ────────────────────────
         try:

@@ -24,84 +24,97 @@ REFRESH_WAIT = 1.5           # Time after Ctrl+L before reading
 
 
 # ─── Logging Setup ─────────────────────────────────────────────
+# Log routing is per-build via contextvars: a build thread sets its log
+# file name + stream queue, and any worker threads it spawns (wrapped in
+# ctx.run) inherit the same routing. This keeps concurrent VM builds'
+# installer output isolated from each other.
+import contextvars
+import threading as _threading
+
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
-_log_file = None
-_log_file_name = "autopilot_run.txt"  # default, can be overridden per-VM
-_log_stream_queue = None  # optional queue.Queue for real-time streaming
+_LOG_FILE_NAME = contextvars.ContextVar("autopilot_log_file_name", default="autopilot_run.txt")
+_LOG_STREAM_QUEUE = contextvars.ContextVar("autopilot_log_stream_queue", default=None)
+
+# One open handle per log file name (a build may still be writing to its
+# file while another build starts) — closed together at exit.
+_OPEN_FILES = {}
+_OPEN_FILES_LOCK = _threading.Lock()
 
 
 def _set_log_file(filename):
-    """Set the log filename (called before _init_log to enable per-VM logs).
-    
+    """Set the log filename for the CURRENT build (via context).
+
+    Call this from the build thread; worker threads spawned with
+    contextvars.copy_context().run(...) inherit the same filename.
+
     Args:
         filename: log file name (relative to logs/ dir)
     """
-    global _log_file_name, _log_file
-    # Close previous log if open
-    if _log_file:
-        try:
-            _log_file.write(f"\n=== Log switched (new VM) at {datetime.now().isoformat()} ===\n")
-            _log_file.close()
-        except Exception:
-            pass
-        _log_file = None
-    _log_file_name = filename
+    _LOG_FILE_NAME.set(filename)
 
 
 def _set_log_stream_queue(q):
-    """Set an optional queue to receive log lines in real-time (for SSE streaming).
-    
+    """Set the log queue for the CURRENT build (via context).
+
     Args:
         q: queue.Queue instance, or None to disable
     """
-    global _log_stream_queue
-    _log_stream_queue = q
+    _LOG_STREAM_QUEUE.set(q)
 
 
 def _init_log():
-    """Initialize the log file (creates logs/ dir if needed, overwrites file)."""
-    global _log_file
-    if _log_file is not None:
-        return
-    os.makedirs(LOG_DIR, exist_ok=True)
-    log_path = os.path.join(LOG_DIR, _log_file_name)
-    _log_file = open(log_path, "w", encoding="utf-8")
-    _log_file.write(f"=== Autopilot Run Started: {datetime.now().isoformat()} ===\n")
-    _log_file.write(f"=== Log file: {_log_file_name} ===\n\n")
-    _log_file.flush()
+    """Ensure an open file handle exists for the current build's log file."""
+    name = _LOG_FILE_NAME.get()
+    with _OPEN_FILES_LOCK:
+        if name in _OPEN_FILES:
+            return
+        os.makedirs(LOG_DIR, exist_ok=True)
+        log_path = os.path.join(LOG_DIR, name)
+        f = open(log_path, "w", encoding="utf-8")
+        f.write(f"=== Autopilot Run Started: {datetime.now().isoformat()} ===\n")
+        f.write(f"=== Log file: {name} ===\n\n")
+        f.flush()
+        _OPEN_FILES[name] = f
     atexit.register(_close_log)
 
 
 def _close_log():
-    """Close the log file gracefully."""
-    global _log_file
-    if _log_file:
-        try:
-            _log_file.write(f"\n=== Autopilot Run Ended: {datetime.now().isoformat()} ===\n")
-            _log_file.flush()
-            _log_file.close()
-        except Exception:
-            pass
-        _log_file = None
+    """Close all open log file handles gracefully."""
+    with _OPEN_FILES_LOCK:
+        for f in _OPEN_FILES.values():
+            try:
+                f.write(f"\n=== Autopilot Run Ended: {datetime.now().isoformat()} ===\n")
+                f.flush()
+                f.close()
+            except Exception:
+                pass
+        _OPEN_FILES.clear()
 
 
 def log(msg=""):
-    """Print to terminal AND write to log file (flush immediately).
-    Also pushes to log stream queue if one is set (for real-time SSE streaming).
+    """Print to terminal AND write to the current build's log file (flush immediately).
+    Also pushes to the current build's log stream queue if one is set
+    (for real-time SSE streaming).
     """
-    global _log_file, _log_stream_queue
-    if _log_file is None:
+    name = _LOG_FILE_NAME.get()
+    with _OPEN_FILES_LOCK:
+        f = _OPEN_FILES.get(name)
+    if f is None:
         _init_log()
+        with _OPEN_FILES_LOCK:
+            f = _OPEN_FILES.get(name)
     print(msg, flush=True)
-    try:
-        _log_file.write(msg + "\n")
-        _log_file.flush()
-    except Exception:
-        pass
-    # Push to real-time stream queue if set (non-blocking)
-    if _log_stream_queue is not None:
+    if f is not None:
         try:
-            _log_stream_queue.put_nowait(msg)
+            f.write(msg + "\n")
+            f.flush()
+        except Exception:
+            pass
+    # Push to the current build's real-time stream queue (non-blocking)
+    q = _LOG_STREAM_QUEUE.get()
+    if q is not None:
+        try:
+            q.put_nowait(msg)
         except Exception:
             pass
 

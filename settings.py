@@ -19,7 +19,7 @@ MODEL = os.environ.get("VM_AGENT_MODEL", "anthropic::claude-4-6-sonnet")
 
 # ── Execution mode ───────────────────────────────────────────
 # Defaults to dry-run so it is safe to run on Windows during dev.
-DRY_RUN = os.environ.get("VM_AGENT_DRY_RUN", "0") not in ("0", "false", "False")
+DRY_RUN = os.environ.get("VM_AGENT_DRY_RUN", "1") not in ("0", "false", "False")
 
 # ── Agent Mode (Phase 2) ─────────────────────────────────────
 # When True: Claude decides each tool step dynamically (looping agentic loop)
