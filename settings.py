@@ -18,14 +18,15 @@ ANTHROPIC_BASE_URL = os.environ.get(
 MODEL = os.environ.get("VM_AGENT_MODEL", "anthropic::claude-4-6-sonnet")
 
 # ── Execution mode ───────────────────────────────────────────
-# Defaults to dry-run so it is safe to run on Windows during dev.
-DRY_RUN = os.environ.get("VM_AGENT_DRY_RUN", "1") not in ("0", "false", "False")
+# Dry-run defaults to OFF so real commands execute against the host.
+# Set VM_AGENT_DRY_RUN=1 to re-enable simulation.
+DRY_RUN = os.environ.get("VM_AGENT_DRY_RUN", "0") not in ("0", "false", "False")
 
 # ── Agent Mode (Phase 2) ─────────────────────────────────────
 # When True: Claude decides each tool step dynamically (looping agentic loop)
-# When False: Classic hardcoded plan (default, reliable)
-# Set VM_AGENT_MODE=1 to enable, or change to True below for testing.
-AGENT_MODE = os.environ.get("VM_AGENT_MODE", "0") not in ("0", "false", "False")
+# When False: Classic hardcoded plan
+# Agent mode defaults to ON; set VM_AGENT_MODE=0 for classic mode.
+AGENT_MODE = os.environ.get("VM_AGENT_MODE", "1") not in ("0", "false", "False")
 #AGENT_MODE = True
 #DRY_RUN = True
 # ── Orchestrator behaviour ───────────────────────────────────

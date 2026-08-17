@@ -1464,7 +1464,9 @@
                     break;
                 }
                 case 'log':
-                    if (d.line) streamAdd('info', esc(d.line), '', '');
+                    // Raw tool log lines are intentionally not shown as console
+                    // cards — the step timeline + summaries keep the console clean.
+                    // Full output remains available in the build log viewer.
                     break;
                 case 'failed': {
                     const i = Math.max(0, (d.step || 1) - 1);

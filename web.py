@@ -233,6 +233,30 @@ def _emit(b, obj):
             b["outcome"] = obj["type"]
 
 
+def _iter_build_events(b, replay=True):
+    """Yield a build's events without consuming the shared buffer.
+
+    Every SSE client (the original page's stream, plus streams re-attached
+    after logout / page refresh) reads the same history via its own cursor,
+    so re-attached clients receive the full buffered log instead of racing
+    the original stream with destructive pop(0) calls. When the cap trims
+    old events, a cursor that falls off the front simply restarts.
+    """
+    cursor = 0 if replay else len(b["events"])
+    while True:
+        with b["lock"]:
+            events = b["events"]
+            if cursor > len(events):
+                cursor = 0  # history trimmed by the cap — restart
+            while cursor < len(events):
+                yield events[cursor]
+                cursor += 1
+            done = b.get("done", False)
+        if done:
+            break
+        time.sleep(0.3)
+
+
 def _new_build(sid, config, agent_mode, plan):
     import queue as _queue
     return {
@@ -967,11 +991,11 @@ def api_execute():
         _ctx = _cv.copy_context()
         threading.Thread(target=lambda: _ctx.run(_run_build_thread, b["id"]), daemon=True).start()
 
-        while not b.get("done") or b["events"]:
-            with b["lock"]:
-                while b["events"]:
-                    yield f"data: {json.dumps(b['events'].pop(0))}\n\n"
-            time.sleep(0.3)
+        # New build: buffer starts empty, so replay=True is identical to
+        # watching live but avoids a race where the thread's first events
+        # could be emitted before the iterator's cursor is set.
+        for obj in _iter_build_events(b, replay=True):
+            yield f"data: {json.dumps(obj)}\n\n"
 
     return Response(generate(), mimetype="text/event-stream")
 
@@ -1558,11 +1582,8 @@ def api_execute_stream(build_id):
 
     def generate():
         yield f"data: {json.dumps({'type': 'build_id', 'build_id': b['id'], 'vm_name': b['vm_name'], 'replay': True})}\n\n"
-        while not b.get("done") or b["events"]:
-            with b["lock"]:
-                while b["events"]:
-                    yield f"data: {json.dumps(b['events'].pop(0))}\n\n"
-            time.sleep(0.3)
+        for obj in _iter_build_events(b, replay=True):
+            yield f"data: {json.dumps(obj)}\n\n"
 
     return Response(generate(), mimetype="text/event-stream")
 
@@ -1681,9 +1702,22 @@ def api_preview_config():
 
         if result.get("status") == "success":
             data_out = result.get("data", {})
+            # The tool returns SBDF strings ("0000:0a:00.0"); the UI expects
+            # {address, name, free} objects — normalize here.
+            raw_devs = data_out.get("pci_devices", []) or []
+            pci_devices = [
+                {
+                    "address": d.get("address") or d,
+                    "name": d.get("name") or "Qualcomm AIC",
+                    "free": True,
+                }
+                if isinstance(d, dict)
+                else {"address": d, "name": "Qualcomm AIC", "free": True}
+                for d in raw_devs
+            ]
             return jsonify({
                 "ok": True,
-                "pci_devices": data_out.get("pci_devices", []),
+                "pci_devices": pci_devices,
                 "iommu_group": data_out.get("iommu_group"),
                 "free_groups_count": data_out.get("free_groups_count", 0),
                 "used_iommu_groups": data_out.get("used_iommu_groups", []),
