@@ -190,36 +190,41 @@
         .hero h1{font-size:32px;font-weight:700;letter-spacing:-.6px;line-height:1.12;font-family:var(--disp)}
         .hero h1 .grad{color:var(--accent)}
         .hero p{color:var(--text-1);margin-top:10px;max-width:640px;font-size:14px;line-height:1.6}
-        .nl-box{
-            position:relative;margin-top:20px;background:var(--surface-0);
-            border:1px solid var(--border-2);border-radius:10px;
-            padding:12px 14px;transition:.2s;
-        }
-        .nl-box::before,.nl-box::after{
-            content:"";position:absolute;width:14px;height:14px;pointer-events:none;
-        }
-        .nl-box::before{top:-1px;left:-1px;border-top:2px solid var(--accent);border-left:2px solid var(--accent);border-top-left-radius:10px;opacity:.7}
-        .nl-box::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--accent);border-right:2px solid var(--accent);border-bottom-right-radius:10px;opacity:.7}
-        .nl-box:focus-within{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-soft)}
-        .nl-prompt{display:flex;gap:10px;align-items:flex-start}
-        .prompt-caret{
-            font-family:var(--mono);color:var(--accent);font-size:15px;line-height:1.5;user-select:none;
-            text-shadow:0 0 12px rgba(168,85,247,.55);
-        }
-        .nl-box textarea{
-            flex:1;resize:none;background:transparent;border:none;outline:none;
-            font-size:14.5px;line-height:1.55;color:var(--text-0);min-height:44px;
-        }
-        .nl-box textarea::placeholder{color:var(--text-2)}
-        .nl-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;flex-wrap:wrap}
         .chips{display:flex;gap:7px;flex-wrap:wrap}
         .chip{
             font-family:var(--mono);font-size:10.5px;padding:4px 10px;border-radius:6px;color:var(--text-1);
             border:1px solid var(--border-2);background:var(--surface-2);transition:.15s;letter-spacing:.02em;
         }
         .chip:hover{color:var(--accent);border-color:var(--accent-border);background:var(--accent-soft)}
-        .parse-note{font-size:11px;color:var(--text-2);margin-top:10px;display:none;font-family:var(--mono)}
-        .parse-note.show{display:block;color:var(--accent)}
+
+        .chat-fab{
+            position:fixed;right:22px;bottom:22px;width:54px;height:54px;border-radius:50%;
+            background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;font-size:22px;
+            cursor:pointer;z-index:90;display:flex;align-items:center;justify-content:center;
+            box-shadow:0 4px 24px rgba(124,58,237,.5);transition:transform .15s;
+        }
+        .chat-fab:hover{transform:scale(1.07)}
+        .chat-panel{
+            position:fixed;right:22px;bottom:88px;width:min(400px,calc(100vw - 44px));
+            max-height:min(560px,calc(100vh - 140px));background:var(--surface-2);
+            border:1px solid var(--accent-border);border-radius:14px;display:none;flex-direction:column;
+            z-index:91;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5);
+        }
+        .chat-panel.show{display:flex}
+        .chat-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border-2);background:var(--surface-3)}
+        .chat-title{font-weight:700;font-size:14px;color:var(--text-1)}
+        .chat-sub{font-size:11px;color:var(--text-2);margin-top:1px}
+        .chat-msgs{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-height:170px;max-height:320px}
+        .msg{max-width:88%;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+        .msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:3px}
+        .msg.bot{align-self:flex-start;background:var(--surface-3);border:1px solid var(--border-2);color:var(--text-1);border-bottom-left-radius:3px}
+        .msg.err{background:var(--danger-soft);border:1px solid rgba(255,107,107,.3);color:var(--danger)}
+        .msg.typing{color:var(--text-2);font-style:italic}
+        .chat-chips{padding:2px 14px 8px;display:flex;gap:6px;flex-wrap:wrap}
+        .chat-chips .chip{font-size:11px;padding:4px 10px;border-radius:999px}
+        .chat-input{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border-2)}
+        .chat-input input{flex:1;background:var(--bg);border:1px solid var(--border-2);border-radius:8px;padding:9px 12px;color:var(--text-1);font-size:13px;outline:none}
+        .chat-input input:focus{border-color:var(--accent-border)}
 
         .rail{
             display:flex;align-items:center;gap:10px;
@@ -244,6 +249,7 @@
         .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
         .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
         .field label{display:block;font-size:10px;font-weight:600;color:var(--text-1);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase;font-family:var(--mono)}
+        .field label .req{color:var(--danger);margin-left:2px}
         .field input,.field select{
             width:100%;background:var(--surface-0);border:1px solid var(--border-2);
             border-radius:var(--radius-sm);padding:9px 12px;font-size:13.5px;outline:none;transition:.15s;
@@ -526,18 +532,9 @@
             <section class="card hero">
                 <h1>Provision a VM. <span class="grad">Just describe it.</span></h1>
                 <p>VM Agent plans the build, decides each step with Claude, and provisions the VM on your KVM host — from host resources to AIC card passthrough.</p>
-                <div class="nl-box">
-                    <textarea id="nlInput" rows="2" placeholder="e.g. &quot;build a 32 GB 4-core VM named test01 with 2 AIC cards&quot; — press Enter or click Parse."></textarea>
-                    <div class="nl-actions">
-                        <div class="chips" id="chips">
-                            <button class="chip" data-sample="build a 32 GB 8-core VM named test01 with 4 AIC cards">4× AIC cards, 32 GB</button>
-                            <button class="chip" data-sample="create a 16 GB 4-core VM called devbox with 100 GB disk">Dev box · 100 GB</button>
-                            <button class="chip" data-sample="make a P2P VM with 2 cards">P2P VM</button>
-                            <button class="chip" data-sample="provision a 64 GB quad-core VM for ML with 200 GB disk">ML box · 64 GB</button>
-                        </div>
-                        <button class="btn btn-accent" id="parseBtn">Parse request →</button>
-                    </div>
-                    <div class="parse-note" id="parseNote"></div>
+                <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:20px">
+                    <button class="btn btn-accent" id="heroBuildBtn">Configure a VM →</button>
+                    <span class="muted">Questions about your VMs? Ask the assistant from the 💬 bubble.</span>
                 </div>
             </section>
 
@@ -549,10 +546,6 @@
                 <div id="hostConnected" style="display:none">
                     <div class="connected-line"><span class="dot"></span> Connected to <b id="connHostLabel">—</b>
                         <button class="btn btn-ghost btn-sm" id="switchHostBtn" style="margin-left:auto">Switch server</button>
-                    </div>
-                    <div id="hostSummary" style="display:none;margin-top:12px">
-                        <div class="stats" id="hostStats"></div>
-                        <div class="hint" style="margin-top:8px">Resource limits are auto-capped from these values when you build.</div>
                     </div>
                 </div>
                 <div id="connectForm">
@@ -594,7 +587,7 @@
                     </div>
                     <div class="field"><label>AIC cards</label><input id="aicCards" type="number" min="0" placeholder="0"></div>
                     <div class="field"><label>VM username</label><input id="vmUser" placeholder="ubuntu"></div>
-                    <div class="field"><label>VM password</label><input id="vmPass" type="password" placeholder="optional"></div>
+                    <div class="field"><label>VM password <span class="req">*</span></label><input id="vmPass" type="password" placeholder="required" required><div class="hint" style="margin-top:4px">Used to SSH into the VM &amp; shown on the ready card</div></div>
                 </div>
                 <div class="grid2" style="margin-top:14px">
                     <div class="field" id="acsField" style="display:none">
@@ -762,7 +755,7 @@
         // ── helpers ──────────────────────────────────────
         const $ = (id) => document.getElementById(id);
         const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmt = (n) => (n == null || n === '' || isNaN(n)) ? '—' : n;
+        const fmt = (n) => (n == null || n === '' || n === '?') ? '—' : n;
         const hasKey = () => localStorage.getItem('vm_agent_api_key') || '';
 
         async function apiFetch(url, opts = {}) {
@@ -1144,10 +1137,6 @@
             markStep(1, 'done');
             markStep(2, 'active');
             if (ip) $('connHostLabel').textContent = ip;
-            if (resources && Object.keys(resources).length) {
-                $('hostSummary').style.display = 'block';
-                renderHostStats(resources);
-            }
             if (ip) $('footHost').textContent = 'host: ' + ip;
         }
 
@@ -1202,71 +1191,6 @@
                 btn.classList.remove('btn-busy');
                 btn.disabled = false;
             }
-        });
-
-        function renderHostStats(r) {
-            const tiles = [
-                ['RAM', fmt(r.ram_total_gb) + ' GB', 'total', r.ram_total_gb ? Math.round((1 - (r.ram_free_gb / r.ram_total_gb)) * 100) : 0],
-                ['CPU', fmt(r.cpu_count) + ' cores', 'total', r.cpu_count ? Math.round((r.cpu_allocated / r.cpu_count) * 100) : 0],
-                ['Disk', fmt(r.disk_total_gb) + ' GB', 'total', r.disk_total_gb ? Math.round((1 - (r.disk_free_gb / r.disk_total_gb)) * 100) : 0],
-            ];
-            $('hostStats').innerHTML = tiles.map(t =>
-                '<div class="stat"><div class="k">' + t[0] + '</div>' +
-                '<div class="v">' + esc(t[1]) + '</div>' +
-                '<div class="meter"><i style="width:' + Math.min(100, t[3]) + '%"></i></div></div>'
-            ).join('');
-        }
-
-        // ── natural-language request parsing ─────────────
-        async function parseRequest(text) {
-            if (!text.trim()) return;
-            hideErr('formError');
-            $('parseBtn').classList.add('btn-busy');
-            $('parseBtn').disabled = true;
-            try {
-                const d = await apiFetch('/api/parse_request', {
-                    method: 'POST',
-                    body: JSON.stringify({ message: text }),
-                });
-                const c = d.config || {};
-                if (c.vm_name) $('vmName').value = c.vm_name;
-                if (c.memory_gb) $('memGb').value = c.memory_gb;
-                if (c.num_cpu) $('numCpu').value = c.num_cpu;
-                if (c.disk_size) $('diskSize').value = c.disk_size;
-                if (c.aic_cards != null) $('aicCards').value = c.aic_cards;
-                if (c.vm_type) $('vmType').value = c.vm_type;
-                if (c.acs_state) { $('acsField').style.display = 'block'; $('acsState').value = c.acs_state; }
-                if (c.vm_username) $('vmUser').value = c.vm_username;
-                if (c.vm_password) $('vmPass').value = c.vm_password;
-                if (c.os_image) $('osImage').value = c.os_image;
-                if (c.vm_type === 'p2p') $('acsField').style.display = 'block';
-                const noteEl = $('parseNote');
-                noteEl.textContent = (d.used_llm ? '✓ Parsed by Claude. ' : '') + (d.note || '') + ' Review the fields, then build.';
-                noteEl.classList.add('show');
-                setBadge('configBadge', 'parsed', 'badge-blue');
-                markStep(2, 'active');
-                $('sec2').scrollIntoView({ behavior: 'smooth', block: 'start' });
-                streamAdd('info', 'Request parsed', 'Extracted VM config from your request.', '');
-            } catch (err) {
-                showErr('formError', err.message);
-            } finally {
-                $('parseBtn').classList.remove('btn-busy');
-                $('parseBtn').disabled = false;
-            }
-        }
-
-        $('parseBtn').addEventListener('click', () => parseRequest($('nlInput').value));
-        $('nlInput').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                parseRequest($('nlInput').value);
-            }
-        });
-        document.querySelectorAll('#chips .chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                $('nlInput').value = chip.dataset.sample;
-                parseRequest(chip.dataset.sample);
-            });
         });
 
         // ── templates ────────────────────────────────────
@@ -1490,7 +1414,8 @@
                     $('resultMeta').innerHTML =
                         (d.vm_ip ? '<span>IP <b class="mono">' + esc(d.vm_ip) + '</b></span>' : '') +
                         (d.vm_mac ? '<span>MAC <b class="mono">' + esc(d.vm_mac) + '</b></span>' : '') +
-                        (d.username ? '<span>user <b class="mono">' + esc(d.username) + '</b></span>' : '');
+                        (d.username ? '<span>user <b class="mono">' + esc(d.username) + '</b></span>' : '') +
+                        (d.vm_password ? '<span>pass <b class="mono">' + esc(d.vm_password) + '</b></span>' : '');
                     $('resultArea').classList.add('show');
                     window._lastBuiltVm = d.vm_name;
                     streamAdd('ok', 'VM ready — ' + d.vm_name, (d.vm_ip ? 'Reachable at <b class="mono">' + esc(d.vm_ip) + '</b>.' : 'Build finished successfully.'), '');
@@ -1696,7 +1621,8 @@
                     '<div><div class="stats" style="grid-template-columns:repeat(2,1fr)">' + vmTiles + '</div>' +
                     '<div class="stat" style="margin-top:10px"><div class="k">qmonitor-proxy</div>' +
                     '<div class="v" style="font-size:14px">' + (d.qmonitor_active ? '✓ active' : '✗ inactive') + '</div></div></div>';
-                $('healthNote').textContent = 'Total VMs: ' + fmt(d.total_vms) + ' · active sessions: ' + fmt(d.active_sessions);
+                $('healthNote').textContent = 'Total VMs: ' + fmt(d.total_vms) + ' · active sessions: ' + fmt(d.active_sessions) +
+                    ' — build resource limits are auto-capped from these values.';
             } catch (e) {
                 $('healthGrid').innerHTML = '';
                 $('healthNote').textContent = 'Host health unavailable — ' + e.message;
@@ -1752,6 +1678,81 @@
         restoreSession();
         loadBuilds();
     })();
+        // ── AI chat assistant ─────────────────────────────
+        $('heroBuildBtn').addEventListener('click', () => {
+            const target = state.connected ? 'sec2' : 'sec1';
+            $(target).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        function addChatMsg(kind, text) {
+            const div = document.createElement('div');
+            div.className = 'msg ' + kind;
+            div.textContent = text;
+            $('chatMsgs').appendChild(div);
+            $('chatMsgs').scrollTop = $('chatMsgs').scrollHeight;
+            return div;
+        }
+        function toggleChat(force) {
+            const open = force != null ? force : !$('chatPanel').classList.contains('show');
+            $('chatPanel').classList.toggle('show', open);
+            if (open) {
+                if (!$('chatMsgs').children.length) {
+                    addChatMsg('bot', state.connected
+                        ? 'Hi! I can see your live host data. Ask me about your VMs — state, IPs, specs, or host resources.'
+                        : 'Connect to a KVM host from step 1 first — then I can tell you about your VMs (state, IPs, specs, host resources).');
+                }
+                $('chatInput').focus();
+            }
+        }
+        $('chatFab').addEventListener('click', () => toggleChat());
+        $('chatClose').addEventListener('click', () => toggleChat(false));
+        async function sendChat(text) {
+            text = (text || '').trim();
+            if (!text) return;
+            addChatMsg('user', text);
+            $('chatInput').value = '';
+            const typing = addChatMsg('bot typing', 'Claude is thinking…');
+            $('chatSend').disabled = true;
+            try {
+                const d = await apiFetch('/api/chat', { method: 'POST', body: JSON.stringify({ message: text }) });
+                typing.remove();
+                addChatMsg('bot', d.answer || 'No answer.');
+            } catch (err) {
+                typing.remove();
+                addChatMsg('err', err.message || 'Something went wrong.');
+            } finally {
+                $('chatSend').disabled = false;
+                $('chatInput').focus();
+            }
+        }
+        $('chatSend').addEventListener('click', () => sendChat($('chatInput').value));
+        $('chatInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); sendChat($('chatInput').value); }
+        });
+        document.querySelectorAll('#chatChips .chip').forEach(chip => {
+            chip.addEventListener('click', () => sendChat(chip.dataset.q));
+        });
     </script>
+    <button class="chat-fab" id="chatFab" title="Ask about your VMs">💬</button>
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-head">
+            <div>
+                <div class="chat-title">Ask about your VMs</div>
+                <div class="chat-sub">Claude · answers from live host data</div>
+            </div>
+            <button class="modal-close" id="chatClose">✕</button>
+        </div>
+        <div class="chat-msgs" id="chatMsgs"></div>
+        <div class="chips chat-chips" id="chatChips">
+            <button class="chip" data-q="Which VMs are running?">Which VMs are running?</button>
+            <button class="chip" data-q="Show me the host resources">Host resources</button>
+            <button class="chip" data-q="What are the IPs of my VMs?">VM IPs</button>
+        </div>
+        <div class="chat-input">
+            <input id="chatInput" placeholder="e.g. What is the IP of vm3?" autocomplete="off">
+            <button class="btn btn-accent" id="chatSend">Send</button>
+        </div>
+    </div>
 </body>
+
 </html>

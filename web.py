@@ -39,6 +39,7 @@ import orchestrator
 from state import AgentState
 from settings import DRY_RUN, AGENT_MODE, ANTHROPIC_API_KEY, KVM_APT_PACKAGES, VM_WORK_DIR
 import input_extractor
+import llm_client
 
 # Optional API key (set VM_AGENT_API_KEY env var to enable auth on write endpoints)
 API_KEY = os.environ.get("VM_AGENT_API_KEY", "").strip()
@@ -340,7 +341,10 @@ def _fake_ssh_output(cmd, host_ip):
         return "CPU(s): 8\nMax memory: 33554432 KiB\nUsed memory: 33554432 KiB"
     m = re.search(r"virsh domifaddr\s+(\S+)", c)
     if m:
-        return "  vnet0    ipv4    192.168.122.50/24"
+        return "  vnet0    52:54:00:12:34:56    ipv4    192.168.122.50/24"
+    m = re.search(r"virsh domblklist\s+(\S+)", c)
+    if m:
+        return "Target   Source\n-------------------------------\nvda      /home/vm_images/ubuntu.qcow2"
     m = re.search(r"virsh domblkinfo\s+(\S+)", c)
     if m:
         return "Capacity: 100.0 GiB\nAllocation: 12.0 GiB"
@@ -693,7 +697,7 @@ def _run_agent_mode(b, config, state, session, ssh_client, plan):
                     _audit(sid, "vm_build_complete", f"vm={vm_name} ip={vm_ip} mode=agent")
                     _register_built_vm(b.get("host_ip"), vm_name)
                     _emit_event({'type': 'progress', 'percent': 100, 'step': len(plan), 'total': len(plan), 'tool': 'done'})
-                    _emit_event({'type': 'complete', 'vm_name': vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username})
+                    _emit_event({'type': 'complete', 'vm_name': vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username, 'vm_password': config.vm_password})
                     b["stage"] = "done"
                     return
 
@@ -728,7 +732,7 @@ def _run_agent_mode(b, config, state, session, ssh_client, plan):
         _audit(sid, "vm_build_complete", f"vm={config.vm_name} ip={vm_ip} mode=agent")
         _register_built_vm(b.get("host_ip"), config.vm_name)
         _emit_event({'type': 'progress', 'percent': 100, 'step': len(plan), 'total': len(plan), 'tool': 'done'})
-        _emit_event({'type': 'complete', 'vm_name': config.vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username})
+        _emit_event({'type': 'complete', 'vm_name': config.vm_name, 'vm_ip': vm_ip, 'vm_mac': vm_mac, 'username': config.vm_username, 'vm_password': config.vm_password})
     else:
         _emit_event({'type': 'failed', 'tool': 'agent_loop', 'error': 'Agent loop ended without completion'})
     b["stage"] = "done"
@@ -1227,7 +1231,7 @@ def _run_build_plan(b):
         _audit(sid, "vm_build_complete", f"vm={config.vm_name} ip={vm_ip}")
         _register_built_vm(b.get("host_ip"), config.vm_name)
         _emit(b, {"type": "progress", "percent": 100, "step": len(plan), "total": len(plan), "tool": "done"})
-        _emit(b, {"type": "complete", "vm_name": config.vm_name, "vm_ip": vm_ip, "vm_mac": vm_mac, "username": config.vm_username})
+        _emit(b, {"type": "complete", "vm_name": config.vm_name, "vm_ip": vm_ip, "vm_mac": vm_mac, "username": config.vm_username, "vm_password": config.vm_password})
         b["stage"] = "done"
     finally:
         # Ensure the stream is marked finished even on early exit
@@ -1236,25 +1240,24 @@ def _run_build_plan(b):
             b["stage"] = "done"
 
 
-@app.route("/api/list_vms", methods=["GET"])
-def api_list_vms():
-    """List all VMs on the connected host with specs."""
-    import traceback
-    sid = _get_session_id()
-    session = _get_session(sid)
+def _collect_vm_inventory(ssh, password=""):
+    """Read the host's VM inventory (name, state, specs) via virsh.
+
+    Shared by /api/list_vms and the AI chat assistant so both always
+    see the same live picture of the host.
+    """
+    vm_list = []
     try:
-        ssh = session.get("ssh_client")
-        if ssh is None:
-            return jsonify({"error": "Not connected to host"}), 400
-
-        password = session.get("host_password", "")
         _, output = _ssh_run(ssh, "sudo -S virsh list --all --name 2>/dev/null", password=password)
-        vms = [name.strip() for name in output.splitlines() if name.strip()]
+    except Exception:
+        return vm_list
+    vms = [name.strip() for name in output.splitlines() if name.strip()]
 
-        vm_list = []
-        for name in vms:
+    for name in vms:
+        try:
             _, state_out = _ssh_run(ssh, f"sudo -S virsh domstate {name} 2>/dev/null", password=password)
             state = state_out.strip() or "unknown"
+
 
             specs = {"vcpus": "?", "memory": "?", "disk": "?"}
             try:
@@ -1263,7 +1266,7 @@ def api_list_vms():
                     if "CPU(s):" in line:
                         specs["vcpus"] = line.split(":")[-1].strip()
                     elif "Max memory:" in line or "Used memory:" in line:
-                        mem_kb = line.split(":")[-1].strip().replace("KiB", "").replace("kB", "").strip()
+                        mem_kb = line.split(":")[-1].strip().replace("KiB", "").replace("kB", "").replace(",", "").strip()
                         try:
                             mem_gb = round(int(mem_kb) / 1024 / 1024, 1)
                             specs["memory"] = f"{mem_gb} GB"
@@ -1279,7 +1282,14 @@ def api_list_vms():
                             specs["ip"] = m.group(3)
                             break
 
-                _, blk_out = _ssh_run(ssh, f"sudo -S virsh domblkinfo {name} vda --human 2>/dev/null", password=password)
+                disk_target = "vda"
+                _, blk_list = _ssh_run(ssh, f"sudo -S virsh domblklist {name} 2>/dev/null", password=password)
+                for bline in blk_list.splitlines():
+                    btok = bline.strip().split()
+                    if btok and re.match(r"^(vd|sd|xvd|nvme)", btok[0]):
+                        disk_target = btok[0]
+                        break
+                _, blk_out = _ssh_run(ssh, f"sudo -S virsh domblkinfo {name} {disk_target} --human 2>/dev/null", password=password)
                 if blk_out.strip():
                     for line in blk_out.splitlines():
                         if "Capacity:" in line:
@@ -1303,11 +1313,143 @@ def api_list_vms():
                 pass
 
             vm_list.append({"name": name, "state": state, "specs": specs})
+        except Exception:
+            vm_list.append({"name": name, "state": "unknown", "specs": {"vcpus": "?", "memory": "?", "disk": "?"}})
 
-        return jsonify({"vms": vm_list})
+    return vm_list
+
+
+@app.route("/api/list_vms", methods=["GET"])
+def api_list_vms():
+    """List all VMs on the connected host with specs."""
+    sid = _get_session_id()
+    session = _get_session(sid)
+    if session.get("ssh_client") is None:
+        return jsonify({"error": "Not connected to host"}), 400
+    try:
+        return jsonify({"vms": _collect_vm_inventory(session["ssh_client"], session.get("host_password", ""))})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"Failed to list VMs: {e}"}), 500
+
+
+def _chat_fallback(message, vms, resources):
+    """Rule-based answers when no ANTHROPIC_API_KEY is configured.
+
+    Keeps the chat usable in dry-run/demo mode and as a safety net
+    whenever Claude is unavailable.
+    """
+    m = (message or "").lower()
+    if not vms:
+        if resources:
+            return (
+                f"Connected to the host, but no VMs are defined yet. The host has "
+                f"{resources.get('ram_total_gb')} GB RAM, {resources.get('cpu_count')} cores "
+                f"and {resources.get('disk_total_gb')} GB disk. You can build one from the "
+                "Configure VM step."
+            )
+        return "You're not connected to a KVM host yet — connect from step 1 first, then I can tell you about your VMs."
+
+    for v in vms:
+        if v["name"].lower() in m:
+            s = v.get("specs", {})
+            ip = f", IP {s.get('ip')}" if s.get("ip") else ""
+            return (
+                f"{v['name']} is **{v['state']}** — {s.get('vcpus', '?')} vCPUs, "
+                f"{s.get('memory', '?')} RAM, {s.get('disk', '?')} disk{ip}."
+            )
+    if "running" in m:
+        run = [v["name"] for v in vms if v["state"] == "running"]
+        return f"Running VMs: {', '.join(run) if run else 'none'}."
+    if "shut" in m or "stop" in m or "off" in m:
+        off = [v["name"] for v in vms if v["state"] != "running"]
+        return f"Shut-off VMs: {', '.join(off) if off else 'none'}."
+    if "ip" in m or "address" in m:
+        lines = [f"{v['name']}: {v.get('specs', {}).get('ip', 'no IP yet')}" for v in vms]
+        return "VM IPs —\n" + "\n".join(lines)
+    if "host" in m or "resource" in m or "ram" in m or "cpu" in m or "disk" in m or "memory" in m:
+        if resources:
+            return (
+                f"Host resources: {resources.get('ram_total_gb')} GB RAM, "
+                f"{resources.get('cpu_count')} cores, {resources.get('disk_total_gb')} GB disk total."
+            )
+    names = ", ".join(v["name"] for v in vms)
+    return (
+        f"I can see {len(vms)} VM(s) on this host: {names}. Ask me about their state, IP, "
+        "or specs — or about host resources."
+    )
+
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    """AI assistant: answer any question about the host / its VMs using Claude.
+
+    Context (live inventory + host resources) is gathered from the same
+    virsh calls the UI uses, so answers reflect the real host state. When
+    ANTHROPIC_API_KEY is not set, a small rule-based assistant answers
+    instead so the chat still works in demo mode.
+    """
+    sid = _get_session_id()
+    session = _get_session(sid)
+    if not session.get("authed"):
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.json or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "Message is required"}), 400
+    if len(message) > 2000:
+        return jsonify({"error": "Message too long"}), 400
+
+    ssh = session.get("ssh_client")
+    password = session.get("host_password", "")
+    host_ip = session.get("host_ip") or "unknown"
+
+    context = f"Connected KVM host: {host_ip}\n"
+    vms, resources = [], {}
+    if ssh is not None:
+        vms = _collect_vm_inventory(ssh, password)
+        try:
+            resources = _fetch_host_resources(ssh, password)
+        except Exception:
+            resources = {}
+    else:
+        context += "No host connected yet.\n"
+
+    if vms:
+        context += "VM inventory (name | state | vcpus | memory | disk | ip):\n"
+        for v in vms:
+            s = v.get("specs", {})
+            context += (
+                f"- {v['name']} | {v['state']} | {s.get('vcpus', '?')} vcpu | "
+                f"{s.get('memory', '?')} | {s.get('disk', '?')} | {s.get('ip', 'no IP')}\n"
+            )
+    else:
+        context += "No VMs found on the host.\n"
+
+    if resources:
+        context += (
+            f"Host resources: {resources.get('ram_total_gb')} GB RAM, "
+            f"{resources.get('cpu_count')} cores, {resources.get('disk_total_gb')} GB disk total.\n"
+        )
+
+    used_llm = bool(ANTHROPIC_API_KEY)
+    answer = _chat_fallback(message, vms, resources)
+    if used_llm:
+        prompt = (
+            "You are the assistant inside VM Agent, a KVM/Ubuntu VM provisioning tool.\n"
+            "Answer the user's question using ONLY the live host context below. Be concise "
+            "(2-5 sentences), factual and friendly. If the answer is not in the context, say "
+            "what data is available.\n\n"
+            f"CONTEXT:\n{context}\n\n"
+            f"USER QUESTION: {message}"
+        )
+        try:
+            answer = llm_client.ask(prompt, max_tokens=600, temperature=0.2)
+        except Exception as e:
+            answer = _chat_fallback(message, vms, resources) + f"\n\n(Claude unavailable: {e})"
+
+    _audit(sid, "chat", f"len={len(message)} used_llm={used_llm}")
+    return jsonify({"answer": answer, "used_llm": used_llm})
 
 
 @app.route("/api/toggle_vm", methods=["POST"])
