@@ -5,25 +5,75 @@
 # stripping any markdown code fences the model may add.
 # ─────────────────────────────────────────────────────────────
 
+import contextvars
+import threading
 import anthropic
 import httpx
 
 from settings import ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, MODEL
 
-# One client for the whole app — created lazily so the app can boot even
-# when ANTHROPIC_API_KEY is not set yet (LLM calls fail at call time instead).
-_client = None
+# ── Per-session API key support ──────────────────────────────────
+# Each user gets their own Codewise API key (fetched at login time
+# from codewise.qualcomm.com).  The key lives in a ContextVar so
+# concurrent requests (and background build threads that inherit the
+# Flask request context via contextvars.copy_context()) never mix
+# credentials.  When no session key is set, the global
+# ANTHROPIC_API_KEY (from env) is used as a fallback.
+_session_key_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "_session_api_key", default=None
+)
+_clients: dict[str, anthropic.Anthropic] = {}  # key → client cache
+_clients_lock = threading.Lock()
+
+
+def set_session_key(api_key: str):
+    """Store the user's Codewise API key for the current request context.
+
+    Because we use a ContextVar, this value automatically propagates
+    into background build threads that use contextvars.copy_context().
+    """
+    _session_key_var.set(api_key)
+
+
+def clear_session_key():
+    """Remove the per-session key (e.g. on logout)."""
+    _session_key_var.set(None)
+
+
+def _active_key() -> str:
+    """Return the API key to use for the current context.
+    Per-session key wins; global env key is the fallback."""
+    return _session_key_var.get() or ANTHROPIC_API_KEY
+
+
+# Default client (uses global ANTHROPIC_API_KEY) — created lazily.
+_default_client = None
 
 
 def _get_client():
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(
+    """Return the Anthropic client for the current thread.
+    Per-session keys get their own cached client so concurrent users
+    never share credentials."""
+    key = _active_key()
+    # Per-session key → own client (cached by key value)
+    if key and key != ANTHROPIC_API_KEY:
+        with _clients_lock:
+            if key not in _clients:
+                _clients[key] = anthropic.Anthropic(
+                    api_key=key,
+                    base_url=ANTHROPIC_BASE_URL,
+                    http_client=httpx.Client(verify=False),
+                )
+            return _clients[key]
+    # Fallback: global env key
+    global _default_client
+    if _default_client is None:
+        _default_client = anthropic.Anthropic(
             api_key=ANTHROPIC_API_KEY,
             base_url=ANTHROPIC_BASE_URL,
-            http_client=httpx.Client(verify=False),  # internal gateway; SSL verify off
+            http_client=httpx.Client(verify=False),
         )
-    return _client
+    return _default_client
 
 
 def strip_code_fences(text: str) -> str:

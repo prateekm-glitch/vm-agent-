@@ -17,6 +17,16 @@ def run(config, state):
     # Stop qmonitor before starting VM (as per mq_vm.py)
     ssh_run_sudo(ssh, "/opt/qti-aic/scripts/qaic-monitor-service.sh stop", host_password)
 
+    # Ensure qaic_peergrp.iso placeholder exists.
+    # mq_vm.py creates this file during install (touch qaic_peergrp.iso) and
+    # the VM's libvirt XML references it as a CD-ROM device.
+    # If the file is missing, virsh start fails with:
+    #   "Cannot access storage file '/home/vm_images/qaic_peergrp.iso'"
+    # We recreate it as an empty placeholder before every start.
+    from settings import VM_WORK_DIR
+    ssh_run_sudo(ssh, f"touch {VM_WORK_DIR}/qaic_peergrp.iso 2>/dev/null || true", host_password)
+    print(f"   [start_vm] Ensured {VM_WORK_DIR}/qaic_peergrp.iso exists", flush=True)
+
     exit_code, output = ssh_run_sudo(ssh, f"virsh start {config.vm_name}", host_password)
     if exit_code != 0:
         return failure(f"virsh start failed: {output}")

@@ -65,6 +65,13 @@ RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM = os.environ.get("RESEND_FROM", "VM Agent <onboarding@resend.dev>")
 RESEND_API_URL = os.environ.get("RESEND_API_URL", "https://api.resend.com/emails")
 
+# Codewise API key endpoint — returns the caller's Anthropic key.
+# Fetched once per login session; the user never sees it.
+CODEWISE_API_KEY_URL = os.environ.get(
+    "CODEWISE_API_KEY_URL",
+    "https://codewise.qualcomm.com/api_key",
+)
+
 # APT packages required on the KVM host.
 KVM_APT_PACKAGES = (
     "qemu-kvm qemu-utils libvirt-daemon-system libvirt-clients "

@@ -37,7 +37,7 @@ from config import VMConfig
 import config_validator
 import orchestrator
 from state import AgentState
-from settings import DRY_RUN, AGENT_MODE, ANTHROPIC_API_KEY, KVM_APT_PACKAGES, VM_WORK_DIR, SLACK_WEBHOOK_URL, RESEND_API_KEY, RESEND_FROM, RESEND_API_URL
+from settings import DRY_RUN, AGENT_MODE, ANTHROPIC_API_KEY, KVM_APT_PACKAGES, VM_WORK_DIR, SLACK_WEBHOOK_URL, RESEND_API_KEY, RESEND_FROM, RESEND_API_URL, CODEWISE_API_KEY_URL
 import input_extractor
 import llm_client
 
@@ -378,6 +378,7 @@ def _new_build(sid, config, agent_mode, plan):
         "vm_name": config.vm_name,
         "stage": "running",
         "cancel_requested": False,
+        "pre_existing_vm": False,  # True if the VM name already existed on the host before this build
         "events": [],
         "log_lines": [],
         "lock": threading.Lock(),
@@ -759,6 +760,39 @@ def _format_summary(resources):
 
 # ── Agent Mode Helper ─────────────────────────────────────────
 
+def _cleanup_partial_vm(b):
+    """Best-effort removal of a partially-created VM when its build is cancelled.
+
+    Runs destroy + undefine --remove-all-storage + PCI-XML cleanup on the host
+    (same as /api/delete_vm). Only acts when the domain did NOT already exist
+    on the host before this build started, so cancelling a rebuild never
+    deletes a pre-existing VM with the same name. Safe in DRY_RUN — the fake
+    host treats destroy/undefine as no-ops. Returns True if it attempted a
+    cleanup.
+    """
+    vm_name = b.get("vm_name")
+    if not vm_name or b.get("pre_existing_vm"):
+        return False
+    ssh = b.get("ssh_client")
+    if ssh is None:
+        session = _get_session(b.get("sid"))
+        ssh = session.get("ssh_client") if session else None
+    if ssh is None:
+        return False
+    password = b.get("host_password") or ""
+    try:
+        _emit(b, {"type": "log", "line": f"[build] 🧹 Cancelling — removing partially-created VM '{vm_name}' from the host..."})
+        _ssh_run(ssh, f"sudo -S virsh destroy {vm_name} 2>/dev/null", password=password, timeout=30)
+        time.sleep(1)
+        _ssh_run(ssh, f"sudo -S virsh undefine {vm_name} --remove-all-storage 2>&1", password=password, timeout=60)
+        _ssh_run(ssh, f"sudo -S rm -f {VM_WORK_DIR}/{vm_name}_pci*.xml 2>/dev/null", password=password, timeout=30)
+        _emit(b, {"type": "log", "line": f"[build] ✅ Removed partially-created VM '{vm_name}' from the host"})
+        return True
+    except Exception as e:
+        _emit(b, {"type": "log", "line": f"[build] ⚠ Could not clean up VM '{vm_name}' on the host: {e}"})
+        return False
+
+
 def _run_agent_mode(b, config, state, session, ssh_client, plan):
     """Run the agentic loop for build b, pushing events into b's buffer.
 
@@ -842,9 +876,10 @@ def _run_agent_mode(b, config, state, session, ssh_client, plan):
 
     # Consume events while the loop runs
     while not agent_done["done"] or not agent_event_queue.empty() or not log_queue.empty():
-        # User cancelled? Stop cleanly
+        # User cancelled? Stop cleanly and remove any partially-created VM
         if b["cancel_requested"]:
-            _emit_event({'type': 'cancelled', 'msg': 'Build cancelled by user.'})
+            _cleanup_partial_vm(b)
+            _emit_event({'type': 'cancelled', 'msg': 'Build cancelled by user. Partially-created VM removed from the host.'})
             b["stage"] = "done"
             return
 
@@ -911,7 +946,8 @@ def _run_agent_mode(b, config, state, session, ssh_client, plan):
 
                 elif event_type == "agent_cancelled":
                     reason = data.get("reason", "Cancelled by user")
-                    _emit_event({'type': 'cancelled', 'msg': reason})
+                    _cleanup_partial_vm(b)
+                    _emit_event({'type': 'cancelled', 'msg': f"{reason} Partially-created VM removed from the host."})
                     b["stage"] = "done"
                     return
 
@@ -921,6 +957,15 @@ def _run_agent_mode(b, config, state, session, ssh_client, plan):
         time.sleep(0.3)
 
     # If loop ended without explicit complete/failed event, check state
+    if b["cancel_requested"]:
+        # Agent loop exited because cancellation was requested (the nested
+        # thread only stops at tool boundaries, so it can exit cleanly at
+        # the same moment). Treat it as a cancel, not a failure, and clean
+        # up any partially-created VM.
+        _cleanup_partial_vm(b)
+        _emit_event({'type': 'cancelled', 'msg': 'Build cancelled by user. Partially-created VM removed from the host.'})
+        b["stage"] = "done"
+        return
     vm_ip = state.get_output("vm_ip", "unknown")
     if vm_ip and vm_ip != "unknown":
         vm_mac = state.get_output("vm_mac", "")
@@ -942,6 +987,10 @@ def _require_login():
     The landing page itself is always served (it renders the login screen
     when the session is not authenticated); every /api/* endpoint requires
     an authenticated session, except /api/login and /api/logout.
+
+    Also injects the user's per-session Codewise API key into the
+    llm_client thread-local so every Claude call uses the right
+    credentials — completely transparent to the rest of the code.
     """
     if request.path in ("/", "/api/login", "/api/logout"):
         return None
@@ -951,7 +1000,40 @@ def _require_login():
     session = _get_session(sid)
     if not session.get("authed"):
         return jsonify({"error": "Authentication required"}), 401
+    # Inject per-session Codewise API key for this request thread
+    codewise_key = session.get("codewise_key")
+    if codewise_key:
+        llm_client.set_session_key(codewise_key)
     return None
+
+
+def _fetch_codewise_api_key(session, sid):
+    """Fetch the user's personal Anthropic key from Codewise.
+
+    Called once after login, in a background thread.  The key is stored
+    in the session dict (in-memory) and used by llm_client on every
+    Claude call via the before_request hook.
+
+    The user never sees this happen — it's fully invisible.
+    """
+    try:
+        import urllib.request
+        import urllib.error
+        req = urllib.request.Request(
+            CODEWISE_API_KEY_URL,
+            headers={"User-Agent": "vm-agent/1.0"},
+        )
+        # Allow 5s for the fetch — it's a simple GET returning a short string
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            key = resp.read().decode("utf-8").strip()
+            if key and len(key) > 10:  # sanity: a real API key is long
+                session["codewise_key"] = key
+                print(f"   [codewise] ✅ API key fetched for session {sid[:8]}…", flush=True)
+            else:
+                print(f"   [codewise] ⚠ API key response too short ({len(key)} chars), skipping", flush=True)
+    except Exception as e:
+        # Non-fatal: builds/chat will fall back to the global ANTHROPIC_API_KEY
+        print(f"   [codewise] ⚠ Could not fetch API key: {e}", flush=True)
 
 
 @app.route("/")
@@ -986,6 +1068,13 @@ def api_login():
     session["authed"] = True
     session["username"] = username
     _audit(sid, "login", f"{username}@{host_ip}")
+
+    # ── Codewise API key fetch (background, invisible to user) ────
+    # Fetches the user's personal Anthropic key from codewise.qualcomm.com
+    # and stores it in the session. llm_client uses it automatically on
+    # every Claude call via the before_request hook.
+    threading.Thread(target=_fetch_codewise_api_key, args=(session, sid), daemon=True).start()
+
     resp = make_response(jsonify({"ok": True, "username": username, "host_ip": host_ip, "session_token": sid, **payload}))
     return _make_response_with_cookie(sid, resp)
 
@@ -1006,6 +1095,8 @@ def api_logout():
     session.pop("host_ip", None)
     session.pop("host_username", None)
     session.pop("host_password", None)
+    session.pop("codewise_key", None)  # clear per-user Claude key
+    llm_client.clear_session_key()  # clear thread-local for this request
     resp = make_response(jsonify({"ok": True}))
     return _make_response_with_cookie(sid, resp)
 
@@ -1278,6 +1369,15 @@ def _run_build_plan(b):
     state.set_output("host_ip", b.get("host_ip", ""))
     state.set_output("host_username", b.get("host_username", "ubuntu"))
 
+    # Note whether the VM name already existed on the host before this build,
+    # so cancelling the build never destroys a pre-existing VM of the same name.
+    b["pre_existing_vm"] = False
+    if not DRY_RUN and ssh_client:
+        ec, _ = _ssh_run(ssh_client, f"sudo -S virsh dominfo {config.vm_name} 2>&1", password=b.get("host_password", ""))
+        b["pre_existing_vm"] = (ec == 0)
+        if b["pre_existing_vm"]:
+            _emit(b, {"type": "log", "line": f"[build] ⚠ VM '{config.vm_name}' already exists on the host — cancelling this build will NOT delete it."})
+
     if b["agent_mode"] and not ANTHROPIC_API_KEY:
         _emit(b, {"type": "log", "line": "⚠ No ANTHROPIC_API_KEY set — agent mode unavailable, falling back to the classic plan."})
         _emit(b, {"type": "log", "line": "⚠ Set ANTHROPIC_API_KEY to enable the agentic loop."})
@@ -1329,7 +1429,8 @@ def _run_build_plan(b):
     try:
         for idx, tool_name in enumerate(plan, 1):
             if b["cancel_requested"]:
-                _emit(b, {"type": "cancelled", "msg": "Build cancelled by user. In-flight operations may still be finishing on the host."})
+                _cleanup_partial_vm(b)
+                _emit(b, {"type": "cancelled", "msg": "Build cancelled by user. Partially-created VM removed from the host."})
                 b["stage"] = "done"
                 return
 
@@ -1378,7 +1479,8 @@ def _run_build_plan(b):
                 _drain_log_queue()
 
                 if b["cancel_requested"]:
-                    _emit(b, {"type": "cancelled", "msg": "Build cancelled by user. In-flight operations may still be finishing on the host."})
+                    _cleanup_partial_vm(b)
+                    _emit(b, {"type": "cancelled", "msg": "Build cancelled by user. Partially-created VM removed from the host."})
                     b["stage"] = "done"
                     return
 
