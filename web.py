@@ -37,7 +37,7 @@ from config import VMConfig
 import config_validator
 import orchestrator
 from state import AgentState
-from settings import DRY_RUN, AGENT_MODE, ANTHROPIC_API_KEY, KVM_APT_PACKAGES, VM_WORK_DIR
+from settings import DRY_RUN, AGENT_MODE, ANTHROPIC_API_KEY, KVM_APT_PACKAGES, VM_WORK_DIR, SLACK_WEBHOOK_URL, RESEND_API_KEY, RESEND_FROM, RESEND_API_URL
 import input_extractor
 import llm_client
 
@@ -218,6 +218,115 @@ def _register_build(b):
                 del _BUILDS[old["id"]]
 
 
+def _send_notification(message):
+    """POST a plain-text message to the configured Slack/Teams/Discord webhook.
+
+    Fire-and-forget (daemon thread); never blocks a build and never raises.
+    Uses only the standard library.
+    """
+    if not SLACK_WEBHOOK_URL:
+        return
+    try:
+        import urllib.request
+        payload = json.dumps({"text": message}).encode("utf-8")
+        req = urllib.request.Request(
+            SLACK_WEBHOOK_URL, data=payload, headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            print(f"[NOTIFY] sent (HTTP {resp.getcode()}): {message[:80]}", flush=True)
+    except Exception as e:
+        print(f"[NOTIFY] failed to send: {e}", flush=True)
+
+
+def _send_email(to_email, subject, text):
+    """Send a plain-text email via Resend (stdlib-only HTTP POST)."""
+    if not RESEND_API_KEY or not to_email:
+        return
+    try:
+        import urllib.request
+        payload = json.dumps({
+            "from": RESEND_FROM,
+            "to": [to_email],
+            "subject": subject,
+            "text": text,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            RESEND_API_URL,
+            data=payload,
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            print(f"[NOTIFY][email] sent to {to_email} (HTTP {resp.getcode()}): {subject}", flush=True)
+    except Exception as e:
+        print(f"[NOTIFY][email] failed to send to {to_email}: {e}", flush=True)
+
+
+def _build_summary_text(b, kind, obj=None):
+    """All the details for a terminal build notification email."""
+    cfg = b.get("config")
+    vm = b.get("vm_name") or "?"
+    host = b.get("host_ip") or "?"
+    obj = obj or {}
+    lines = [f"VM Agent — {vm} ({kind})", ""]
+    lines.append(f"VM name : {vm}")
+    lines.append(f"Host    : {host}")
+    if obj.get("vm_ip"):
+        lines.append(f"IP      : {obj['vm_ip']}")
+    if obj.get("vm_mac"):
+        lines.append(f"MAC     : {obj['vm_mac']}")
+    if obj.get("vm_password") or obj.get("username"):
+        lines.append(f"Login   : {obj.get('username') or 'ubuntu'}"
+                     + (f" / {obj['vm_password']}" if obj.get("vm_password") else ""))
+    if cfg is not None:
+        lines.append(f"vCPUs   : {getattr(cfg, 'num_cpu', '?')}")
+        lines.append(f"Memory  : {getattr(cfg, 'memory_gb', '?')} GB")
+        lines.append(f"Disk    : {getattr(cfg, 'disk_size', '?')}")
+        if getattr(cfg, "aic_cards", None):
+            lines.append(f"AIC     : {cfg.aic_cards} card(s)")
+        lines.append(f"Type    : {getattr(cfg, 'vm_type', 'normal')}")
+    lines.append(f"Mode    : {'agent' if b.get('agent_mode') else 'classic'}")
+    started = b.get("started_at")
+    if started:
+        mins, secs = divmod(int(time.time() - started), 60)
+        lines.append(f"Duration: {mins}m {secs}s")
+    return "\n".join(lines)
+
+
+def _notify_build_outcome(b, kind, obj=None):
+    """Queue notifications when a build reaches a terminal state.
+
+    - Slack/Teams/Discord webhook (global, if SLACK_WEBHOOK_URL is set)
+    - Email to the per-build notify email (if RESEND_API_KEY + address set)
+    """
+    vm = b.get("vm_name") or "?"
+    host = b.get("host_ip") or "?"
+    if kind == "complete":
+        title = "✅ VM build complete"
+        body = f"VM **{vm}** is ready on host {host}."
+        subj = f"✅ VM Agent: {vm} build complete"
+    elif kind == "failed":
+        title = "❌ VM build failed"
+        body = f"VM **{vm}** failed on host {host}."
+        subj = f"❌ VM Agent: {vm} build failed"
+    elif kind == "cancelled":
+        title = "⏹ VM build cancelled"
+        body = f"Build of **{vm}** was cancelled on host {host}."
+        subj = f"⏹ VM Agent: {vm} build cancelled"
+    else:
+        title = "⚠️ VM build error"
+        body = f"Build of **{vm}** errored on host {host}."
+        subj = f"⚠️ VM Agent: {vm} build error"
+
+    if SLACK_WEBHOOK_URL:
+        threading.Thread(target=_send_notification, args=(f"{title}: {body}",), daemon=True).start()
+
+    to_email = (b.get("notify_email") or "").strip()
+    if RESEND_API_KEY and to_email:
+        summary = _build_summary_text(b, kind, obj)
+        threading.Thread(target=_send_email, args=(to_email, subj, summary), daemon=True).start()
+
+
 def _emit(b, obj):
     """Push an event into a build's buffer (SSE + log lines)."""
     with b["lock"]:
@@ -232,6 +341,9 @@ def _emit(b, obj):
             b["progress"] = obj.get("percent", b.get("progress", 0))
         if obj.get("type") in ("complete", "failed", "cancelled", "error"):
             b["outcome"] = obj["type"]
+            if not b.get("notified"):
+                b["notified"] = True
+                _notify_build_outcome(b, obj["type"], obj)
 
 
 def _iter_build_events(b, replay=True):
@@ -275,6 +387,7 @@ def _new_build(sid, config, agent_mode, plan):
         "agent_mode": bool(agent_mode),
         "started_at": time.time(),
         "done": False,
+        "notify_email": None,
         # Host this build belongs to. Snapshot at build start so the build
         # keeps running on the right server even if the UI session later
         # disconnects or switches to another host.
@@ -296,6 +409,7 @@ def _new_build(sid, config, agent_mode, plan):
 # back) shows reality exactly like virsh does on a real host.
 _FAKE_VMS = {}  # host_ip -> {name -> {"state": "running" | "shut off"}}
 _FAKE_VMS_LOCK = threading.Lock()
+_CPU_SAMPLES = {}  # vm_name -> (timestamp, cpu.time) for delta-based CPU %
 
 
 def _seed_fake_vms(host_ip):
@@ -338,10 +452,39 @@ def _fake_ssh_output(cmd, host_ip):
             return v["state"] if v else "shut off"
     m = re.search(r"virsh dominfo\s+(\S+)", c)
     if m:
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.get(host_ip, {})
+            if m.group(1) not in host_vms:
+                return ""
         return "CPU(s): 8\nMax memory: 33554432 KiB\nUsed memory: 33554432 KiB"
+    m = re.search(r"virsh domstats\s+(\S+)", c)
+    if m:
+        # cpu.time advances at ~50% of wall-clock -> steady 50% CPU in demo
+        import time as _t
+        return (
+            f"Domain: '{m.group(1)}'\n"
+            f"  cpu.time={int(_t.time() * 0.5e9)}\n"
+            "  balloon.current=12884901888\n"
+            "  balloon.maximum=34359738368\n"
+            "  net.0.rx.bytes=10485760\n"
+            "  net.0.tx.bytes=2097152"
+        )
     m = re.search(r"virsh domifaddr\s+(\S+)", c)
     if m:
+        # Only a running VM reports its address; stopped VMs fall back to leases
+        with _FAKE_VMS_LOCK:
+            host_vms = _FAKE_VMS.get(host_ip, {})
+            v = host_vms.get(m.group(1))
+            if v and v.get("state") == "shut off":
+                return ""
         return "  vnet0    52:54:00:12:34:56    ipv4    192.168.122.50/24"
+    if "virsh net-list --all" in c:
+        return " Name      State    Autostart\n default   active   yes"
+    if "virsh net-dhcp-leases" in c:
+        return (
+            " Expiry Time          MAC address        Protocol  IP address\n"
+            " 2026-08-18 12:00:00  52:54:00:12:34:56  ipv4      192.168.122.50/24"
+        )
     m = re.search(r"virsh domiflist\s+(\S+)", c)
     if m:
         return (
@@ -394,6 +537,13 @@ def _fake_ssh_output(cmd, host_ip):
             host_vms = _FAKE_VMS.get(host_ip, {})
             host_vms.pop(m.group(1), None)
         return f"Domain {m.group(1)} has been undefined"
+    if c.startswith("sudo -S cp "):
+        return ""
+    m = re.search(r"virsh define (/tmp/(\S+)_clone\.xml)", c)
+    if m:
+        with _FAKE_VMS_LOCK:
+            _FAKE_VMS.setdefault(host_ip, {})[m.group(2)] = {"state": "shut off"}
+        return f"Domain {m.group(2)} defined from {m.group(1)}"
     if "rm -f" in c and "pci" in c:
         return ""
     if "free -b | grep Mem" in c:
@@ -439,6 +589,12 @@ class _FakeChannel:
         return _F(out)
 
     def recv_exit_status(self):
+        # virsh returns exit 1 when a domain/network doesn't exist; the empty
+        # output models that so clone/delete existence checks behave like real.
+        if "virsh dominfo" in self._cmd or "virsh domstate" in self._cmd:
+            out = _fake_ssh_output(self._cmd, self._host_ip)
+            if not out.strip():
+                return 1
         return 0
 
 
@@ -451,6 +607,26 @@ class _FakeSSH:
 
     def __init__(self, host_ip):
         self._host_ip = host_ip
+
+    def open_sftp(self):
+        class _FakeSFTP:
+            def open(self, path, mode="r"):
+                class _FakeFile:
+                    def __init__(self):
+                        self._data = ""
+                    def write(self, s):
+                        self._data += s
+                        return len(s)
+                    def close(self):
+                        pass
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *a):
+                        self.close()
+                return _FakeFile()
+            def close(self):
+                pass
+        return _FakeSFTP()
 
     def get_transport(self):
         host_ip = self._host_ip
@@ -1005,6 +1181,10 @@ def api_execute():
     b["host_ip"] = session.get("host_ip")
     b["host_username"] = session.get("host_username")
     b["host_password"] = session.get("host_password")
+    # Optional per-build email notification address ("me@corp.com").
+    notify_email = (data.get("notify_email") or "").strip()
+    if notify_email and re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", notify_email) and len(notify_email) <= 200:
+        b["notify_email"] = notify_email
     _register_build(b)
 
     def generate():
@@ -1291,16 +1471,6 @@ def _collect_vm_inventory(ssh, password=""):
                             specs["memory"] = f"{mem_gb} GB"
                         except ValueError:
                             specs["memory"] = mem_kb
-                _, net_out = _ssh_run(ssh, f"sudo -S virsh domifaddr {name} 2>/dev/null", password=password)
-                if net_out.strip():
-                    for line in net_out.splitlines():
-                        m = re.search(r"([0-9a-fA-F:]{17})\s+(\w+)\s+(\d+\.\d+\.\d+\.\d+)/\d+", line)
-                        if m:
-                            specs["mac"] = m.group(1)
-                            specs["protocol"] = m.group(2)
-                            specs["ip"] = m.group(3)
-                            break
-
                 _, if_list = _ssh_run(ssh, f"sudo -S virsh domiflist {name} 2>/dev/null", password=password)
                 nics = []
                 for iline in if_list.splitlines():
@@ -1310,6 +1480,44 @@ def _collect_vm_inventory(ssh, password=""):
                         nics.append({"iface": itok[0], "mac": imac})
                 specs["nics"] = nics
 
+                # Live IP (only reported by domifaddr while the VM is running)
+                _, net_out = _ssh_run(ssh, f"sudo -S virsh domifaddr {name} 2>/dev/null", password=password)
+                if net_out.strip():
+                    for line in net_out.splitlines():
+                        m = re.search(r"([0-9a-fA-F:]{17})\s+(\w+)\s+(\d+\.\d+\.\d+\.\d+)/\d+", line)
+                        if m:
+                            specs["mac"] = m.group(1)
+                            specs["protocol"] = m.group(2)
+                            specs["ip"] = m.group(3)
+                            specs["ip_source"] = "live"
+                            break
+
+                # Fallback for stopped VMs: the host still holds the last DHCP
+                # lease for each NIC MAC, so match MACs against net-dhcp-leases.
+                if not specs.get("ip"):
+                    try:
+                        _, nets_out = _ssh_run(ssh, "sudo -S virsh net-list --all 2>/dev/null", password=password)
+                        nets = []
+                        for nl in nets_out.splitlines():
+                            nt = nl.split()
+                            if nt and nt[0].lower() != "name" and not nt[0].startswith("-"):
+                                nets.append(nt[0])
+                        mac_to_ip = {}
+                        for net in nets:
+                            _, leases_out = _ssh_run(ssh, f"sudo -S virsh net-dhcp-leases {net} 2>/dev/null", password=password)
+                            for lline in leases_out.splitlines():
+                                lm = re.search(r"([0-9a-fA-F:]{17})\s+\S+\s+([\d.]+)", lline)
+                                if lm:
+                                    mac_to_ip[lm.group(1).lower()] = lm.group(2)
+                        for nic in nics:
+                            if nic["mac"] != "?" and mac_to_ip.get(nic["mac"].lower()):
+                                specs["mac"] = nic["mac"]
+                                specs["ip"] = mac_to_ip[nic["mac"].lower()]
+                                specs["ip_source"] = "lease"
+                                break
+                    except Exception:
+                        pass
+
                 _, xml_out = _ssh_run(ssh, f"sudo -S virsh dumpxml {name} 2>/dev/null", password=password)
                 pci_devs = []
                 for hb in re.findall(r"<hostdev\b.*?</hostdev>", xml_out, re.S):
@@ -1318,6 +1526,46 @@ def _collect_vm_inventory(ssh, password=""):
                         sbdf = f"{int(am.group(1),16):04x}:{int(am.group(2),16):02x}:{int(am.group(3),16):02x}.{int(am.group(4),16)}"
                         pci_devs.append(sbdf)
                 specs["pci_devices"] = pci_devs
+
+                # Live utilization: CPU delta%, RAM used, network totals
+                try:
+                    _, stats_out = _ssh_run(ssh, f"sudo -S virsh domstats {name} 2>/dev/null", password=password)
+                    st = {}
+                    for sline in stats_out.splitlines():
+                        if "=" in sline:
+                            k, _, v = sline.partition("=")
+                            st[k.strip()] = v.strip()
+                    stats = {}
+                    now = time.time()
+                    cpu_time = st.get("cpu.time")
+                    if cpu_time is not None:
+                        try:
+                            cur = int(cpu_time)
+                            prev = _CPU_SAMPLES.get(name)
+                            if prev:
+                                d_cpu = cur - prev[1]
+                                d_t = now - prev[0]
+                                if d_t > 0 and d_cpu >= 0:
+                                    stats["cpu_pct"] = round(min(100.0, d_cpu / (d_t * 1e9) * 100), 1)
+                            _CPU_SAMPLES[name] = (now, cur)
+                        except (ValueError, TypeError):
+                            pass
+                    balloon = st.get("balloon.current")
+                    maximum = st.get("balloon.maximum")
+                    if balloon is not None and maximum:
+                        try:
+                            stats["mem_used_gb"] = round(int(balloon) / 1024 / 1024 / 1024, 1)
+                            stats["mem_pct"] = round(int(balloon) / int(maximum) * 100, 1)
+                        except (ValueError, ZeroDivisionError):
+                            pass
+                    rx = sum(int(v) for k, v in st.items() if k.endswith(".rx.bytes") and v.isdigit())
+                    tx = sum(int(v) for k, v in st.items() if k.endswith(".tx.bytes") and v.isdigit())
+                    if rx or tx:
+                        stats["net_rx_mb"] = round(rx / 1048576, 1)
+                        stats["net_tx_mb"] = round(tx / 1048576, 1)
+                    specs["stats"] = stats
+                except Exception:
+                    specs["stats"] = {}
 
                 disk_target = "vda"
                 _, blk_list = _ssh_run(ssh, f"sudo -S virsh domblklist {name} 2>/dev/null", password=password)
@@ -1356,12 +1604,17 @@ def _collect_vm_inventory(ssh, password=""):
     return vm_list
 
 
+_CLONE_META = {}  # vm_name -> {vm_username, vm_password, vm_type, os_image, ...}
+_CLONE_META_LOCK = threading.Lock()
+
+
 def _vm_build_meta(vm_name):
     """Return build-time metadata for a VM built in this process.
 
     P2P type, ACS state, OS image and requested AIC cards are not visible
     to virsh — they only exist in the build config. Looked up by VM name
-    so the chat can answer "is it P2P / which image / how many AIC cards".
+    so the chat can answer "is it P2P / which image / how many AIC cards",
+    and so clones can inherit the source's recorded credentials.
     """
     with _BUILDS_LOCK:
         for b in _BUILDS.values():
@@ -1375,7 +1628,12 @@ def _vm_build_meta(vm_name):
                     "disk_size": getattr(cfg, "disk_size", None),
                     "memory_gb": getattr(cfg, "memory_gb", None),
                     "num_cpu": getattr(cfg, "num_cpu", None),
+                    "vm_username": getattr(cfg, "vm_username", None),
+                    "vm_password": getattr(cfg, "vm_password", None),
                 }
+    with _CLONE_META_LOCK:
+        if vm_name in _CLONE_META:
+            return dict(_CLONE_META[vm_name])
     return None
 
 
@@ -1428,6 +1686,9 @@ def _chat_fallback(message, vms, resources):
                 bits.append(f"OS image: {meta['os_image']}")
             if meta.get("aic_cards"):
                 bits.append(f"requested AIC cards: {meta['aic_cards']}")
+        st = s.get("stats") or {}
+        if st.get("cpu_pct") is not None or st.get("mem_pct") is not None:
+            bits.append(f"live: CPU {st.get('cpu_pct', '?')}%, RAM {st.get('mem_pct', '?')}% used")
         return " — ".join(bits)
 
     for v in vms:
@@ -1460,6 +1721,15 @@ def _chat_fallback(message, vms, resources):
     if "aic" in m or "pci" in m or "gpu" in m or "card" in m:
         lines = [f"{v['name']}: {len(v.get('specs', {}).get('pci_devices') or [])} device(s)" for v in vms]
         return "PCI/AIC devices —\n" + "\n".join(lines)
+    if "busy" in m or "usage" in m or "util" in m or "load" in m or "live stats" in m:
+        lines = []
+        for v in vms:
+            st = v.get("specs", {}).get("stats") or {}
+            if st.get("cpu_pct") is not None or st.get("mem_pct") is not None:
+                lines.append(f"{v['name']}: CPU {st.get('cpu_pct', '?')}%, RAM {st.get('mem_pct', '?')}% used ({st.get('mem_used_gb', '?')} GB)")
+            else:
+                lines.append(f"{v['name']}: no live stats (VM shut off?)")
+        return "Live utilization —\n" + "\n".join(lines)
     if "p2p" in m or "peer" in m:
         p2p_vms = [v["name"] for v in vms if (_vm_build_meta(v["name"]) or {}).get("vm_type") == "p2p"]
         return f"P2P VMs (built through this app): {', '.join(p2p_vms) or 'none'}. P2P type is set at build time and isn't visible to virsh."
@@ -1538,11 +1808,18 @@ def api_chat():
                     f"{' | os_image: ' + meta['os_image'] if meta.get('os_image') else ''}"
                     f"{' | aic_cards: ' + str(meta['aic_cards']) if meta.get('aic_cards') else ''}"
                 )
+            stats = s.get("stats") or {}
+            stats_txt = ""
+            if stats.get("cpu_pct") is not None or stats.get("mem_pct") is not None:
+                stats_txt = (
+                    f" | cpu: {stats.get('cpu_pct', '?')}%"
+                    f" mem: {stats.get('mem_pct', '?')}% used"
+                )
             context += (
                 f"- {v['name']} | {v['state']} | {s.get('vcpus', '?')} vcpu | "
                 f"{s.get('memory', '?')} | {s.get('disk', '?')} | {s.get('ip', 'no IP')} | "
                 f"nics: {len(nics)} ({', '.join(n['iface'] for n in nics) or 'none'}) | "
-                f"pci devices: {', '.join(pci) or 'none'}{extra}\n"
+                f"pci devices: {', '.join(pci) or 'none'}{stats_txt}{extra}\n"
             )
     else:
         context += "No VMs found on the host.\n"
@@ -1646,6 +1923,128 @@ def api_delete_vm():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"Delete failed: {e}"}), 500
+
+
+@app.route("/api/clone_vm", methods=["POST"])
+def api_clone_vm():
+    """Clone an existing VM into a new one (virsh-only, no extra packages).
+
+    Copies the primary disk (reflink when possible), dumps the source XML,
+    swaps name/uuid/disk, drops MACs + PCI hostdev passthrough (those
+    devices are already assigned to the source), and defines the clone.
+    """
+    import traceback
+    import os as _os
+    sid = _get_session_id()
+    session = _get_session(sid)
+    try:
+        data = request.json or {}
+        src = data.get("vm_name", "").strip()
+        new_name = data.get("new_name", "").strip()
+        if not src or not new_name:
+            return jsonify({"error": "vm_name and new_name are required"}), 400
+        if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$", new_name):
+            return jsonify({"error": "new_name may only contain letters, digits, '.', '_' or '-'"}), 400
+        if new_name == src:
+            return jsonify({"error": "new_name must differ from the source VM"}), 400
+
+        # Credentials: explicit values win; otherwise inherit from the source
+        # (a clone is a byte-copy of the disk, so the OS login carries over).
+        src_meta = _vm_build_meta(src) or {}
+        new_username = (data.get("new_username") or "").strip() or src_meta.get("vm_username") or "ubuntu"
+        new_password = (data.get("new_password") or "").strip() or src_meta.get("vm_password") or ""
+        if not re.match(r"^[a-z_][a-z0-9._-]{0,31}$", new_username):
+            return jsonify({"error": "new_username must be a valid login name (lowercase letters, digits, '.', '_', '-')"}), 400
+
+        ssh = session.get("ssh_client")
+        if ssh is None:
+            return jsonify({"error": "Not connected to host"}), 400
+        password = session.get("host_password", "")
+
+        # Source must exist, target must not
+        code, _ = _ssh_run(ssh, f"sudo -S virsh dominfo {src} 2>/dev/null", password=password)
+        if code != 0:
+            return jsonify({"error": f"Source VM '{src}' not found on the host"}), 400
+        code, _ = _ssh_run(ssh, f"sudo -S virsh dominfo {new_name} 2>/dev/null", password=password)
+        if code == 0:
+            return jsonify({"error": f"A VM named '{new_name}' already exists"}), 400
+
+        # Primary disk path
+        code, blk = _ssh_run(ssh, f"sudo -S virsh domblklist {src} 2>/dev/null", password=password)
+        disk_path = None
+        for bl in blk.splitlines():
+            bt = bl.strip().split()
+            if bt and re.match(r"^(vd|sd|xvd|nvme)", bt[0]) and len(bt) > 1 and bt[1] != "-":
+                disk_path = bt[1].strip()
+                break
+        if not disk_path:
+            return jsonify({"error": f"Could not find a disk device for '{src}'"}), 400
+
+        disk_dir = _os.path.dirname(disk_path)
+        ext = _os.path.splitext(disk_path)[1] or ".qcow2"
+        new_disk = f"{disk_dir}/{new_name}{ext}"
+
+        # Copy the disk: reflink when the filesystem supports it (instant CoW),
+        # otherwise a plain copy.
+        code, out = _ssh_run(ssh, f"sudo -S cp --reflink=auto {disk_path} {new_disk} 2>&1", password=password)
+        if code != 0:
+            code, out = _ssh_run(ssh, f"sudo -S cp {disk_path} {new_disk} 2>&1", password=password)
+        if code != 0:
+            return jsonify({"error": f"Failed to copy disk: {out.strip()[:200]}"}), 400
+
+        # Source XML -> clone XML
+        code, xml = _ssh_run(ssh, f"sudo -S virsh dumpxml {src} 2>/dev/null", password=password)
+        if code != 0:
+            _ssh_run(ssh, f"sudo -S rm -f {new_disk}", password=password)
+            return jsonify({"error": f"Failed to read XML of '{src}'"}), 400
+        xml2 = re.sub(r"<name>.*?</name>", f"<name>{new_name}</name>", xml, count=1, flags=re.S)
+        xml2 = re.sub(r"<uuid>.*?</uuid>\s*", "", xml2, count=1, flags=re.S)
+        xml2 = xml2.replace(disk_path, new_disk)
+        xml2 = re.sub(r"\s*<mac address='[^']*'/?(/?)>\s*", "\n", xml2)
+        xml2 = re.sub(r"\s*<hostdev\b.*?</hostdev>\s*", "\n", xml2, flags=re.S)
+
+        # Upload the transformed XML and define the clone
+        remote_xml = f"/tmp/{new_name}_clone.xml"
+        try:
+            sftp = ssh.open_sftp()
+            try:
+                with sftp.open(remote_xml, "w") as f:
+                    f.write(xml2)
+            finally:
+                sftp.close()
+        except Exception as e:
+            _ssh_run(ssh, f"sudo -S rm -f {new_disk}", password=password)
+            return jsonify({"error": f"Failed to upload clone XML: {e}"}), 500
+        code, out = _ssh_run(ssh, f"sudo -S virsh define {remote_xml} 2>&1", password=password)
+        _ssh_run(ssh, f"sudo -S rm -f {remote_xml} 2>/dev/null", password=password)
+        if code != 0:
+            _ssh_run(ssh, f"sudo -S rm -f {new_disk}", password=password)
+            return jsonify({"error": f"Failed to define clone: {out.strip()[:200]}"}), 400
+
+        # Record the clone's login so chat/UI/SSH know it (even after the
+        # source's build leaves the in-memory registry).
+        with _CLONE_META_LOCK:
+            _CLONE_META[new_name] = {
+                "vm_name": new_name,
+                "vm_username": new_username,
+                "vm_password": new_password,
+                "vm_type": src_meta.get("vm_type", "normal"),
+                "os_image": src_meta.get("os_image"),
+                "aic_cards": src_meta.get("aic_cards"),
+                "source": src,
+            }
+
+        _audit(sid, "vm_clone", f"{src} -> {new_name}")
+        return jsonify({
+            "status": "ok",
+            "vm_name": new_name,
+            "source": src,
+            "vm_username": new_username,
+            "vm_password": new_password,
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"Clone VM failed: {e}"}), 500
 
 
 @app.route("/api/session_status", methods=["GET"])

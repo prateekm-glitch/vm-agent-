@@ -54,6 +54,17 @@ ISO_FILENAME = os.environ.get("ISO_FILENAME", "ubuntu-24.04.3-live-server-amd64.
 # Full path to ISO on the KVM host.
 ISO_PATH = f"{VM_WORK_DIR}/{ISO_FILENAME}"
 
+# Optional Slack/Teams/Discord-style incoming webhook for build notifications.
+# Set SLACK_WEBHOOK_URL in the Keys tab to enable. Payload is {"text": msg}.
+SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "")
+
+# Optional email notifications (Resend) for build completion. Users can also
+# set a per-build notify email in the Configure VM form; that is combined
+# with the API key below to send the summary email.
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM = os.environ.get("RESEND_FROM", "VM Agent <onboarding@resend.dev>")
+RESEND_API_URL = os.environ.get("RESEND_API_URL", "https://api.resend.com/emails")
+
 # APT packages required on the KVM host.
 KVM_APT_PACKAGES = (
     "qemu-kvm qemu-utils libvirt-daemon-system libvirt-clients "

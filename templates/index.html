@@ -250,6 +250,7 @@
         .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
         .field label{display:block;font-size:10px;font-weight:600;color:var(--text-1);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase;font-family:var(--mono)}
         .field label .req{color:var(--danger);margin-left:2px}
+        .opt{color:var(--text-2);font-size:10px;font-weight:400;letter-spacing:.04em;margin-left:4px}
         .field input,.field select{
             width:100%;background:var(--surface-0);border:1px solid var(--border-2);
             border-radius:var(--radius-sm);padding:9px 12px;font-size:13.5px;outline:none;transition:.15s;
@@ -414,6 +415,13 @@
         .state-unknown{color:var(--thinking);background:var(--thinking-soft)}
         .cell-actions{display:flex;gap:6px}
         .vm-ip{font-family:var(--mono);font-size:11.5px;color:var(--text-1)}
+        .ip-note{color:var(--text-2);font-size:10px;font-weight:400;margin-left:4px;font-family:var(--sans)}
+        .mini-bar{display:inline-block;width:38px;height:5px;border-radius:3px;background:rgba(148,163,184,.15);overflow:hidden;vertical-align:middle}
+        .mini-bar i{display:block;height:100%;background:linear-gradient(90deg,#7c3aed,#a855f7);border-radius:3px}
+        .mini-val{color:var(--text-2);font-size:10.5px;margin-left:6px}
+        .keep-row{display:flex;gap:10px;align-items:center}
+        .keep-tick{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-2);white-space:nowrap;cursor:pointer;user-select:none}
+        .keep-tick input{accent-color:#7c3aed;cursor:pointer}
         .vm-empty{padding:26px;text-align:center;color:var(--text-2);font-size:12.5px}
         .check{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
 
@@ -604,6 +612,11 @@
                         </select>
                     </div>
                 </div>
+                <div class="field" style="margin-top:14px">
+                    <label>Notify email <span class="opt">(optional)</span></label>
+                    <input id="notifyEmail" placeholder="you@company.com — get the build result by email" autocomplete="off">
+                    <div class="hint" style="margin-top:4px">Leave empty for no email. On completion/failure we send VM details (IP, specs, login) to this address.</div>
+                </div>
                 <div class="error-text" id="formError"></div>
                 <div class="form-actions">
                     <button class="btn" id="previewBtn">Preview PCI assignment</button>
@@ -636,7 +649,7 @@
                         <div class="hint" id="buildHint">Configure a VM above, then build. The agent streams its decisions live in the console.</div>
                         <div class="form-actions" style="margin-top:12px">
                             <button class="btn btn-accent" id="buildBtn">▶ Build VM</button>
-                            <button class="btn btn-danger" id="cancelBtn" style="display:none">■ Cancel build</button>
+                            <button class="btn btn-danger" id="cancelBtn" style="display:none">■ Stop build</button>
                             <span class="muted" id="etaVal"></span>
                         </div>
                         <div class="error-text" id="buildError"></div>
@@ -697,6 +710,8 @@
                             <th>vCPU</th>
                             <th>Memory</th>
                             <th>Disk</th>
+                            <th>CPU</th>
+                            <th>RAM</th>
                             <th>IP</th>
                             <th>Actions</th>
                         </tr>
@@ -740,6 +755,38 @@
         </div>
     </div>
 
+
+    <div class="modal" id="cloneModal">
+        <div class="modal-backdrop" data-close-clone="1"></div>
+        <div class="modal-box" style="max-width:380px">
+            <div class="modal-head">
+                <div class="t">Clone VM</div>
+                <button class="modal-close" data-close-clone="1">✕</button>
+            </div>
+            <div class="modal-body" style="padding:16px 18px">
+                <div class="field"><label>Source VM</label><input id="cloneSrc" disabled></div>
+                <div class="field" style="margin-top:12px"><label>New VM name</label><input id="cloneName" placeholder="e.g. vm3-test" autocomplete="off"></div>
+                <div class="field" style="margin-top:12px"><label>VM username</label>
+                    <div class="keep-row">
+                        <input id="cloneUser" placeholder="ubuntu" autocomplete="off" disabled style="flex:1">
+                        <label class="keep-tick"><input type="checkbox" id="cloneKeepUser" checked> keep same as source</label>
+                    </div>
+                </div>
+                <div class="field" style="margin-top:12px"><label>VM password</label>
+                    <div class="keep-row">
+                        <input id="clonePass" type="password" placeholder="••••••••" autocomplete="off" disabled style="flex:1">
+                        <label class="keep-tick"><input type="checkbox" id="cloneKeepPass" checked> keep same as source</label>
+                    </div>
+                </div>
+                <div class="hint" style="margin-top:10px">A clone is a byte-copy of the source disk — it keeps the same OS login unless you override it here.</div>
+                <div class="error-text" id="cloneError"></div>
+                <div class="form-actions" style="margin-top:14px">
+                    <button class="btn" data-close-clone="1">Cancel</button>
+                    <button class="btn btn-accent" id="cloneOkBtn">Clone VM</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <button class="chat-fab" id="chatFab" title="Ask about your VMs">💬</button>
     <div class="chat-panel" id="chatPanel">
@@ -828,6 +875,7 @@
             const ov = $('loginOverlay');
             if (ov) ov.classList.toggle('hidden', connected);
             if (connected) hideErr('loginError');
+            if (typeof updateBuildBtn === 'function') updateBuildBtn();
         }
         applyAuthState(AUTHD);
 
@@ -1245,6 +1293,7 @@
                 if (c.debug) $('debugMode').value = c.debug;
                 setBadge('configBadge', 'template: ' + name, 'badge-blue');
                 streamAdd('info', 'Template applied', 'Preset <b>' + esc(name) + '</b> loaded into the form.', '');
+                updateBuildBtn();
             } catch (e) { /* ignore */ }
         });
 
@@ -1303,6 +1352,7 @@
             p.set('disk_size', v('diskSize', '100G'));
             p.set('aic_cards', v('aicCards', ''));
             p.set('agent_mode', state.agentMode ? '1' : '0');
+            p.set('notify_email', $('notifyEmail').value.trim());
             return p;
         }
 
@@ -1468,17 +1518,45 @@
             scrollConsole();
         }
 
+        function validateForm() {
+            // Mirrors the backend validator: no negative/zero sizes, sane names.
+            const errs = [];
+            const name = $('vmName').value.trim();
+            if (!name) errs.push('VM name');
+            else if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(name)) errs.push('VM name: letters/digits/._- only');
+            if (!$('osImage').value.trim()) errs.push('OS image');
+            const mem = parseInt($('memGb').value, 10);
+            if (!isFinite(mem) || mem < 1) errs.push('Memory: min 1 GB');
+            const cpu = parseInt($('numCpu').value, 10);
+            if (!isFinite(cpu) || cpu < 1) errs.push('vCPUs: min 1');
+            const ds = $('diskSize').value.trim();
+            const dnum = parseFloat(ds);
+            if (!ds || !isFinite(dnum) || dnum < 1) errs.push('Disk size: min 1 GB');
+            const ac = $('aicCards').value.trim();
+            if (ac && (!isFinite(parseInt(ac, 10)) || parseInt(ac, 10) < 0)) errs.push('AIC cards: 0 or more');
+            const user = ($('vmUser').value.trim() || 'ubuntu');
+            if (!/^[a-z_][a-z0-9._-]{0,31}$/.test(user)) errs.push('VM username: no spaces/special chars');
+            if (!$('vmPass').value) errs.push('VM password');
+            const em = $('notifyEmail').value.trim();
+            if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) errs.push('Notify email: not a valid address');
+            return errs;
+        }
+        function updateBuildBtn() {
+            const errs = validateForm();
+            const bad = errs.length > 0;
+            $('buildBtn').disabled = bad || !state.connected;
+            if (bad) {
+                showErr('buildError', 'Fix before building: ' + errs.join(', ') + '.');
+            } else {
+                hideErr('buildError');
+            }
+        }
         function startBuild() {
             hideErr('buildError');
             // client-side validation mirroring the backend's REQUIRED_FIELDS
-            const missing = [];
-            if (!$('vmName').value.trim()) missing.push('VM name');
-            if (!$('memGb').value) missing.push('Memory');
-            if (!$('numCpu').value) missing.push('vCPUs');
-            if (!$('osImage').value.trim()) missing.push('OS image');
-            if (!$('vmPass').value) missing.push('VM password');
-            if (missing.length) {
-                showErr('buildError', 'Missing required fields: ' + missing.join(', '));
+            const errs = validateForm();
+            if (errs.length) {
+                showErr('buildError', 'Fix before building: ' + errs.join(', ') + '.');
                 $('sec2').scrollIntoView({ behavior: 'smooth', block: 'start' });
                 return;
             }
@@ -1520,6 +1598,12 @@
             startBuild();
         });
 
+        ['vmName', 'osImage', 'memGb', 'numCpu', 'diskSize', 'aicCards', 'vmUser', 'vmPass', 'notifyEmail'].forEach(id => {
+            const el = $(id);
+            if (el) el.addEventListener('input', updateBuildBtn);
+        });
+        updateBuildBtn();
+
         $('cancelBtn').addEventListener('click', () => {
             // Cancels the build currently shown in the console (per-card
             // Cancel buttons are available on every build in the list).
@@ -1554,6 +1638,13 @@
             }
         }
 
+        function statCell(st, key) {
+            const v = (st || {})[key];
+            if (v == null || isNaN(v)) return '<span class="muted">—</span>';
+            const p = Math.max(0, Math.min(100, v));
+            return '<div class="mini-bar" title="' + key + ': ' + v + '%"><i style="width:' + p + '%"></i></div><span class="mini-val">' + v + '%</span>';
+        }
+
         function renderVms() {
             const tbody = $('vmTableBody');
             tbody.innerHTML = vmList.map(vm => {
@@ -1568,9 +1659,12 @@
                     '<td>' + fmt(s.vcpus) + '</td>' +
                     '<td>' + fmt(s.memory) + '</td>' +
                     '<td>' + fmt(s.disk) + '</td>' +
-                    '<td class="vm-ip">' + esc(s.ip || '—') + '</td>' +
+                    '<td>' + statCell(s.stats, 'cpu_pct') + '</td>' +
+                    '<td>' + statCell(s.stats, 'mem_pct') + '</td>' +
+                    '<td class="vm-ip">' + (s.ip ? esc(s.ip) + (!running ? '<span class="ip-note">(last known)</span>' : '') : '—') + '</td>' +
                     '<td><div class="cell-actions">' +
                     '<button class="btn btn-xs vm-toggle" data-name="' + esc(vm.name) + '" data-action="' + (running ? 'shutdown' : 'start') + '">' + (running ? '■ Stop' : '▶ Start') + '</button>' +
+                    '<button class="btn btn-xs btn-ghost vm-clone" data-name="' + esc(vm.name) + '">Clone</button>' +
                     '<button class="btn btn-xs btn-ghost vm-log" data-name="' + esc(vm.name) + '">Log</button>' +
                     '<button class="btn btn-xs btn-danger vm-del" data-name="' + esc(vm.name) + '">Delete</button>' +
                     '</div></td></tr>';
@@ -1591,8 +1685,61 @@
                 } catch (err) { alert(err.message); }
             }));
             tbody.querySelectorAll('.vm-log').forEach(b => b.addEventListener('click', () => openLog(b.dataset.name)));
+            function syncCloneKeep() {
+                $('cloneUser').disabled = $('cloneKeepUser').checked;
+                $('clonePass').disabled = $('cloneKeepPass').checked;
+            }
+            $('cloneKeepUser').addEventListener('change', syncCloneKeep);
+            $('cloneKeepPass').addEventListener('change', syncCloneKeep);
+            tbody.querySelectorAll('.vm-clone').forEach(b => b.addEventListener('click', () => {
+                $('cloneSrc').value = b.dataset.name;
+                $('cloneName').value = b.dataset.name + '-clone';
+                $('cloneUser').value = '';
+                $('clonePass').value = '';
+                $('cloneKeepUser').checked = true;
+                $('cloneKeepPass').checked = true;
+                syncCloneKeep();
+                hideErr('cloneError');
+                $('cloneModal').classList.add('show');
+                $('cloneName').focus();
+            }));
             updateBulkUI();
         }
+        $('cloneModal').querySelectorAll('[data-close-clone]').forEach(el =>
+            el.addEventListener('click', () => $('cloneModal').classList.remove('show')));
+        $('cloneOkBtn').addEventListener('click', async () => {
+            const src = $('cloneSrc').value;
+            const newName = $('cloneName').value.trim();
+            if (!newName) { showErr('cloneError', 'Enter a name for the clone.'); return; }
+            const body = { vm_name: src, new_name: newName };
+            if (!$('cloneKeepUser').checked) {
+                const u = $('cloneUser').value.trim();
+                if (!u) { showErr('cloneError', 'Enter the new username or tick “keep same as source”.'); return; }
+                body.new_username = u;
+            }
+            if (!$('cloneKeepPass').checked) {
+                const pw = $('clonePass').value;
+                if (!pw) { showErr('cloneError', 'Enter the new password or tick “keep same as source”.'); return; }
+                body.new_password = pw;
+            }
+            const ok = $('cloneOkBtn');
+            ok.disabled = true;
+            ok.textContent = 'Cloning…';
+            try {
+                const d = await apiFetch('/api/clone_vm', { method: 'POST', body: JSON.stringify(body) });
+                $('cloneModal').classList.remove('show');
+                await loadVms();
+                streamAdd('ok', 'VM cloned', '<b>' + esc(src) + '</b> → <b>' + esc(d.vm_name || newName) + '</b> (shut off, start it when ready).', '');
+            } catch (err) {
+                showErr('cloneError', err.message);
+            } finally {
+                ok.disabled = false;
+                ok.textContent = 'Clone VM';
+            }
+        });
+        $('cloneName').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); $('cloneOkBtn').click(); }
+        });
 
         function selectedVms() {
             return Array.from(document.querySelectorAll('.vm-check:checked')).map(c => c.dataset.name);
