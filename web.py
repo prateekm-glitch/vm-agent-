@@ -342,6 +342,25 @@ def _fake_ssh_output(cmd, host_ip):
     m = re.search(r"virsh domifaddr\s+(\S+)", c)
     if m:
         return "  vnet0    52:54:00:12:34:56    ipv4    192.168.122.50/24"
+    m = re.search(r"virsh domiflist\s+(\S+)", c)
+    if m:
+        return (
+            "Interface  Type     Source  Model   MAC\n"
+            "vnet0      network  virbr0  virtio  52:54:00:12:34:56\n"
+            "vnet1      network  virbr0  virtio  52:54:00:12:34:57"
+        )
+    m = re.search(r"virsh dumpxml\s+(\S+)", c)
+    if m:
+        return (
+            "<domain type='kvm'>\n"
+            "<hostdev mode='subsystem' type='pci' managed='yes'>\n"
+            "<source><address domain='0x0000' bus='0x0a' slot='0x00' function='0x0'/></source>\n"
+            "</hostdev>\n"
+            "<hostdev mode='subsystem' type='pci' managed='yes'>\n"
+            "<source><address domain='0x0000' bus='0x0b' slot='0x00' function='0x0'/></source>\n"
+            "</hostdev>\n"
+            "</domain>"
+        )
     m = re.search(r"virsh domblklist\s+(\S+)", c)
     if m:
         return "Target   Source\n-------------------------------\nvda      /home/vm_images/ubuntu.qcow2"
@@ -1282,6 +1301,24 @@ def _collect_vm_inventory(ssh, password=""):
                             specs["ip"] = m.group(3)
                             break
 
+                _, if_list = _ssh_run(ssh, f"sudo -S virsh domiflist {name} 2>/dev/null", password=password)
+                nics = []
+                for iline in if_list.splitlines():
+                    itok = iline.strip().split()
+                    if itok and re.match(r"^(vnet|macvtap|tap|eth|ens|enp|br)", itok[0]):
+                        imac = next((t for t in itok[1:] if re.match(r"^[0-9a-fA-F:]{17}$", t)), "?")
+                        nics.append({"iface": itok[0], "mac": imac})
+                specs["nics"] = nics
+
+                _, xml_out = _ssh_run(ssh, f"sudo -S virsh dumpxml {name} 2>/dev/null", password=password)
+                pci_devs = []
+                for hb in re.findall(r"<hostdev\b.*?</hostdev>", xml_out, re.S):
+                    am = re.search(r"domain='(0x[0-9a-fA-F]+)'\s+bus='(0x[0-9a-fA-F]+)'\s+slot='(0x[0-9a-fA-F]+)'\s+function='(0x[0-9a-fA-F]+)'", hb)
+                    if am:
+                        sbdf = f"{int(am.group(1),16):04x}:{int(am.group(2),16):02x}:{int(am.group(3),16):02x}.{int(am.group(4),16)}"
+                        pci_devs.append(sbdf)
+                specs["pci_devices"] = pci_devs
+
                 disk_target = "vda"
                 _, blk_list = _ssh_run(ssh, f"sudo -S virsh domblklist {name} 2>/dev/null", password=password)
                 for bline in blk_list.splitlines():
@@ -1319,6 +1356,29 @@ def _collect_vm_inventory(ssh, password=""):
     return vm_list
 
 
+def _vm_build_meta(vm_name):
+    """Return build-time metadata for a VM built in this process.
+
+    P2P type, ACS state, OS image and requested AIC cards are not visible
+    to virsh — they only exist in the build config. Looked up by VM name
+    so the chat can answer "is it P2P / which image / how many AIC cards".
+    """
+    with _BUILDS_LOCK:
+        for b in _BUILDS.values():
+            cfg = b.get("config")
+            if cfg and getattr(cfg, "vm_name", None) == vm_name:
+                return {
+                    "vm_type": getattr(cfg, "vm_type", "normal"),
+                    "acs_state": getattr(cfg, "acs_state", None),
+                    "os_image": getattr(cfg, "os_image", None),
+                    "aic_cards": getattr(cfg, "aic_cards", None),
+                    "disk_size": getattr(cfg, "disk_size", None),
+                    "memory_gb": getattr(cfg, "memory_gb", None),
+                    "num_cpu": getattr(cfg, "num_cpu", None),
+                }
+    return None
+
+
 @app.route("/api/list_vms", methods=["GET"])
 def api_list_vms():
     """List all VMs on the connected host with specs."""
@@ -1350,14 +1410,61 @@ def _chat_fallback(message, vms, resources):
             )
         return "You're not connected to a KVM host yet — connect from step 1 first, then I can tell you about your VMs."
 
+    def _vm_summary(v):
+        s = v.get("specs", {})
+        meta = _vm_build_meta(v["name"])
+        ip = f", IP {s.get('ip')}" if s.get("ip") else ""
+        nics = s.get("nics") or []
+        pci = s.get("pci_devices") or []
+        bits = [
+            f"{v['name']} is **{v['state']}** — {s.get('vcpus', '?')} vCPUs, "
+            f"{s.get('memory', '?')} RAM, {s.get('disk', '?')} disk{ip}",
+            f"{len(nics)} NIC(s): {', '.join(n['iface'] for n in nics) or 'none'}",
+            f"{len(pci)} PCI/AIC device(s): {', '.join(pci) or 'none'}",
+        ]
+        if meta:
+            bits.append(f"type: **{meta['vm_type']}**" + (" (P2P)" if meta["vm_type"] == "p2p" else ""))
+            if meta.get("os_image"):
+                bits.append(f"OS image: {meta['os_image']}")
+            if meta.get("aic_cards"):
+                bits.append(f"requested AIC cards: {meta['aic_cards']}")
+        return " — ".join(bits)
+
     for v in vms:
         if v["name"].lower() in m:
             s = v.get("specs", {})
-            ip = f", IP {s.get('ip')}" if s.get("ip") else ""
-            return (
-                f"{v['name']} is **{v['state']}** — {s.get('vcpus', '?')} vCPUs, "
-                f"{s.get('memory', '?')} RAM, {s.get('disk', '?')} disk{ip}."
-            )
+            meta = _vm_build_meta(v["name"])
+            nics = s.get("nics") or []
+            pci = s.get("pci_devices") or []
+            if "nic" in m or "interface" in m or "port" in m:
+                return f"{v['name']} has {len(nics)} NIC(s): {', '.join(n['iface'] + ' (' + n['mac'] + ')' for n in nics) or 'none'}."
+            if "p2p" in m or "peer" in m:
+                if meta:
+                    return f"{v['name']} is {'**P2P**' if meta['vm_type'] == 'p2p' else '**not P2P**'}" + (f" (ACS state: {meta['acs_state']})" if meta.get("acs_state") else "") + "."
+                return f"{v['name']} was not built through this app session, so I can't tell its P2P type — P2P is set at build time and isn't visible to virsh."
+            if "sdk" in m:
+                if meta and meta.get("os_image"):
+                    return f"I don't track an SDK version inside the VM — I know it was built from OS image **{meta['os_image']}**. An in-VM SDK check needs a command to run inside the guest."
+                return f"I don't track an SDK version inside the VM — that would need a check run inside the guest (e.g. via SSH). I can tell you the OS image if it was built through this app."
+            if "aic" in m or "pci" in m or "gpu" in m or "card" in m or "device" in m:
+                return f"{v['name']} has {len(pci)} PCI/AIC device(s): {', '.join(pci) or 'none'}." + (f" ({meta['aic_cards']} AIC cards were requested at build time)" if meta and meta.get("aic_cards") else "")
+            if "os" in m or "image" in m or "sdk" in m:
+                if meta and meta.get("os_image"):
+                    return f"{v['name']} was built from OS image **{meta['os_image']}**."
+                return f"{v['name']}'s OS image isn't recorded — it was likely created outside this app session."
+            return _vm_summary(v)
+
+    if "nic" in m or "interface" in m:
+        lines = [f"{v['name']}: {len(v.get('specs', {}).get('nics') or [])} NIC(s)" for v in vms]
+        return "NIC counts —\n" + "\n".join(lines)
+    if "aic" in m or "pci" in m or "gpu" in m or "card" in m:
+        lines = [f"{v['name']}: {len(v.get('specs', {}).get('pci_devices') or [])} device(s)" for v in vms]
+        return "PCI/AIC devices —\n" + "\n".join(lines)
+    if "p2p" in m or "peer" in m:
+        p2p_vms = [v["name"] for v in vms if (_vm_build_meta(v["name"]) or {}).get("vm_type") == "p2p"]
+        return f"P2P VMs (built through this app): {', '.join(p2p_vms) or 'none'}. P2P type is set at build time and isn't visible to virsh."
+    if "sdk" in m:
+        return "I don't track SDK versions inside VMs — that requires a check run inside the guest. I can report each VM's state, IP, specs, NICs and PCI/AIC devices, and the OS image for VMs built through this app."
     if "running" in m:
         run = [v["name"] for v in vms if v["state"] == "running"]
         return f"Running VMs: {', '.join(run) if run else 'none'}."
@@ -1416,12 +1523,26 @@ def api_chat():
         context += "No host connected yet.\n"
 
     if vms:
-        context += "VM inventory (name | state | vcpus | memory | disk | ip):\n"
+        context += "VM inventory (name | state | vcpus | memory | disk | ip | nics | pci devices | build metadata):\n"
         for v in vms:
             s = v.get("specs", {})
+            nics = s.get("nics") or []
+            pci = s.get("pci_devices") or []
+            meta = _vm_build_meta(v["name"])
+            extra = ""
+            if meta:
+                extra = (
+                    f" | type: {meta['vm_type']}"
+                    f"{' p2p' if meta['vm_type'] == 'p2p' else ''}"
+                    f"{' | acs: ' + meta['acs_state'] if meta.get('acs_state') else ''}"
+                    f"{' | os_image: ' + meta['os_image'] if meta.get('os_image') else ''}"
+                    f"{' | aic_cards: ' + str(meta['aic_cards']) if meta.get('aic_cards') else ''}"
+                )
             context += (
                 f"- {v['name']} | {v['state']} | {s.get('vcpus', '?')} vcpu | "
-                f"{s.get('memory', '?')} | {s.get('disk', '?')} | {s.get('ip', 'no IP')}\n"
+                f"{s.get('memory', '?')} | {s.get('disk', '?')} | {s.get('ip', 'no IP')} | "
+                f"nics: {len(nics)} ({', '.join(n['iface'] for n in nics) or 'none'}) | "
+                f"pci devices: {', '.join(pci) or 'none'}{extra}\n"
             )
     else:
         context += "No VMs found on the host.\n"

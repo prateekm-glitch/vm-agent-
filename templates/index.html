@@ -740,6 +740,29 @@
         </div>
     </div>
 
+
+<button class="chat-fab" id="chatFab" title="Ask about your VMs">💬</button>
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-head">
+            <div>
+                <div class="chat-title">Ask about your VMs</div>
+                <div class="chat-sub">Claude · answers from live host data</div>
+            </div>
+            <button class="modal-close" id="chatClose">✕</button>
+        </div>
+        <div class="chat-msgs" id="chatMsgs"></div>
+        <div class="chips chat-chips" id="chatChips">
+            <button class="chip" data-q="Which VMs are running?">Which VMs are running?</button>
+            <button class="chip" data-q="Show me the host resources">Host resources</button>
+            <button class="chip" data-q="What are the IPs of my VMs?">VM IPs</button>
+        </div>
+        <div class="chat-input">
+            <input id="chatInput" placeholder="e.g. What is the IP of vm3?" autocomplete="off">
+            <button class="btn btn-accent" id="chatSend">Send</button>
+        </div>
+    </div>
+</body>
+
     <script>
     (function () {
         'use strict';
@@ -1733,26 +1756,4 @@
             chip.addEventListener('click', () => sendChat(chip.dataset.q));
         });
     </script>
-    <button class="chat-fab" id="chatFab" title="Ask about your VMs">💬</button>
-    <div class="chat-panel" id="chatPanel">
-        <div class="chat-head">
-            <div>
-                <div class="chat-title">Ask about your VMs</div>
-                <div class="chat-sub">Claude · answers from live host data</div>
-            </div>
-            <button class="modal-close" id="chatClose">✕</button>
-        </div>
-        <div class="chat-msgs" id="chatMsgs"></div>
-        <div class="chips chat-chips" id="chatChips">
-            <button class="chip" data-q="Which VMs are running?">Which VMs are running?</button>
-            <button class="chip" data-q="Show me the host resources">Host resources</button>
-            <button class="chip" data-q="What are the IPs of my VMs?">VM IPs</button>
-        </div>
-        <div class="chat-input">
-            <input id="chatInput" placeholder="e.g. What is the IP of vm3?" autocomplete="off">
-            <button class="btn btn-accent" id="chatSend">Send</button>
-        </div>
-    </div>
-</body>
-
-</html>
+    
