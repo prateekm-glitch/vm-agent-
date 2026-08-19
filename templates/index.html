@@ -1220,6 +1220,14 @@
         async function restoreSession() {
             try {
                 const d = await apiFetch('/api/session_status');
+                // If the server recognized our session (even if SSH isn't
+                // connected yet), hide the login overlay so the user stays
+                // on the dashboard.  In sandboxed iframes the cookie may
+                // be blocked, so the server rendered authed=false -- but the
+                // X-Session-Token header lets the API find the real session.
+                if (d.host_ip || d.connected) {
+                    applyAuthState(true);
+                }
                 if (d.connected) {
                     showConnectedHost(d.host_ip);
                     if (d.agent_mode) state.agentMode = true;
@@ -1228,7 +1236,7 @@
                     startPolling();
                 }
                 if (d.vm_name) $('vmName').value = d.vm_name;
-            } catch (e) { /* not connected yet — fine */ }
+            } catch (e) { /* not connected yet */ }
         }
 
         // ── Step 1 · connect ─────────────────────────────
@@ -1847,8 +1855,8 @@
         loadTemplates();
         restoreSession();
         loadBuilds();
-    })();
-        // ── AI chat assistant ─────────────────────────────
+
+// ── AI chat assistant ─────────────────────────────
         $('heroBuildBtn').addEventListener('click', () => {
             const target = state.connected ? 'sec2' : 'sec1';
             $(target).scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1902,5 +1910,6 @@
         document.querySelectorAll('#chatChips .chip').forEach(chip => {
             chip.addEventListener('click', () => sendChat(chip.dataset.q));
         });
-    </script>
+    })();
+            </script>
     

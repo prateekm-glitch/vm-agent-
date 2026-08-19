@@ -85,7 +85,135 @@ _SESSIONS = {}
 _SESSIONS_LOCK = threading.Lock()
 
 SESSION_COOKIE = "vm_agent_session"
-SESSION_TIMEOUT = 3600  # 1 hour idle timeout
+SESSION_TIMEOUT = 86400  # 24 hours idle timeout (persisted across server restarts)
+
+# ── Persisted session file (survives server restarts) ───────
+# When the Flask server restarts (code edits, Vite HMR, process restart),
+# in-memory sessions are wiped. We persist auth state + host credentials
+# to a JSON file so the user stays logged in across restarts.
+_SESSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".vm_session.json")
+
+
+def _save_persisted_sessions():
+    """Write all authed sessions to disk (thread-safe)."""
+    data = {}
+    with _SESSIONS_LOCK:
+        for sid, s in _SESSIONS.items():
+            if s.get("authed") and s.get("host_ip"):
+                data[sid] = {
+                    "host_ip": s.get("host_ip"),
+                    "host_username": s.get("host_username"),
+                    "host_password": s.get("host_password"),
+                    "username": s.get("username", ""),
+                    "authed": True,
+                }
+    try:
+        with open(_SESSION_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"   [session] ⚠ Could not persist sessions: {e}", flush=True)
+
+
+def _load_persisted_sessions():
+    """Restore authed sessions from disk on startup."""
+    try:
+        with open(_SESSION_FILE, "r") as f:
+            data = json.load(f)
+        for sid, s_data in data.items():
+            with _SESSIONS_LOCK:
+                if sid not in _SESSIONS:
+                    _SESSIONS[sid] = {
+                        "config": None,
+                        "stage": "waiting",
+                        "host_ip": s_data.get("host_ip"),
+                        "host_username": s_data.get("host_username"),
+                        "host_password": s_data.get("host_password"),
+                        "host_resources": None,
+                        "ssh_client": None,
+                        "cancel_requested": False,
+                        "authed": s_data.get("authed", False),
+                        "username": s_data.get("username", ""),
+                        "last_active": time.time(),
+                    }
+            print(f"   [session] ✅ Restored session {sid[:8]}… for {s_data.get('username', '?')}@{s_data.get('host_ip', '?')}", flush=True)
+            # Auto-reconnect SSH in background
+            if s_data.get("host_ip") and s_data.get("host_username") and s_data.get("host_password"):
+                threading.Thread(
+                    target=_auto_reconnect_ssh,
+                    args=(sid, s_data["host_ip"], s_data["host_username"], s_data["host_password"]),
+                    daemon=True,
+                ).start()
+        # Clean up file if empty
+        if not data:
+            try:
+                os.remove(_SESSION_FILE)
+            except FileNotFoundError:
+                pass
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    except Exception as e:
+        print(f"   [session] ⚠ Could not load persisted sessions: {e}", flush=True)
+
+
+def _auto_reconnect_ssh(sid, host_ip, host_username, host_password):
+    """Background SSH reconnection for a restored session."""
+    try:
+        print(f"   [session] 🔄 Reconnecting SSH for {sid[:8]}… ({host_username}@{host_ip})", flush=True)
+        error, payload = _connect_to_host(sid, _get_session(sid), host_ip, host_username, host_password)
+        if error:
+            print(f"   [session] ⚠ Auto-reconnect failed for {sid[:8]}…: {error}", flush=True)
+            # Mark as disconnected but still authed — user can reconnect manually
+            session = _get_session(sid)
+            session["authed"] = True  # keep authed so dashboard shows
+            session["ssh_client"] = None
+            session["host_resources"] = None
+        else:
+            print(f"   [session] ✅ Auto-reconnected SSH for {sid[:8]}…", flush=True)
+    except Exception as e:
+        print(f"   [session] ⚠ Auto-reconnect error: {e}", flush=True)# Load persisted sessions at startup
+_load_persisted_sessions()
+
+
+def _try_restore_session(sid):
+    """Try to restore a single session from the persisted file.
+
+    Called when the browser sends a known SID that the server doesn't
+    have in memory (e.g. after a server restart).
+    """
+    try:
+        with open(_SESSION_FILE, "r") as f:
+            data = json.load(f)
+        s_data = data.get(sid)
+        if not s_data:
+            return False
+        with _SESSIONS_LOCK:
+            _SESSIONS[sid] = {
+                "config": None,
+                "stage": "waiting",
+                "host_ip": s_data.get("host_ip"),
+                "host_username": s_data.get("host_username"),
+                "host_password": s_data.get("host_password"),
+                "host_resources": None,
+                "ssh_client": None,
+                "cancel_requested": False,
+                "authed": s_data.get("authed", False),
+                "username": s_data.get("username", ""),
+                "last_active": time.time(),
+            }
+        print(f"   [session] ✅ Restored session {sid[:8]}... from persisted file", flush=True)
+        # Auto-reconnect SSH in background
+        if s_data.get("host_ip") and s_data.get("host_username") and s_data.get("host_password"):
+            threading.Thread(
+                target=_auto_reconnect_ssh,
+                args=(sid, s_data["host_ip"], s_data["host_username"], s_data["host_password"]),
+                daemon=True,
+            ).start()
+        return True
+    except (FileNotFoundError, json.JSONDecodeError):
+        return False
+    except Exception as e:
+        print(f"   [session] ⚠ Could not restore session from file: {e}", flush=True)
+        return False
 
 
 def _get_session_id():
@@ -101,6 +229,11 @@ def _get_session_id():
         sid = (request.args.get("session") or "").strip()
     if not sid:
         sid = request.cookies.get(SESSION_COOKIE) or ""
+    if sid and sid not in _SESSIONS:
+        # The browser sent a known SID but the server doesn't have it
+        # (e.g. after a restart).  Try to restore it from the persisted
+        # file so the user stays logged in.
+        _try_restore_session(sid)
     if not sid or sid not in _SESSIONS:
         sid = str(uuid.uuid4())
     return sid
@@ -152,7 +285,10 @@ def _cleanup_stale_sessions():
 
 def _make_response_with_cookie(sid, resp):
     """Attach session cookie to response."""
-    resp.set_cookie(SESSION_COOKIE, sid, max_age=SESSION_TIMEOUT, httponly=True, samesite="Lax")
+    # httponly=False so the browser JS can read the cookie directly —
+    # this keeps sessions alive even in sandboxed iframes where
+    # localStorage may be wiped on navigation.
+    resp.set_cookie(SESSION_COOKIE, sid, max_age=SESSION_TIMEOUT * 2, httponly=False, samesite="Lax")
     return resp
 
 
@@ -1038,9 +1174,9 @@ def _fetch_codewise_api_key(session, sid):
 
 @app.route("/")
 def index():
-    _cleanup_stale_sessions()
     sid = _get_session_id()
     session = _get_session(sid)  # ensure session exists
+    _cleanup_stale_sessions()  # cleanup AFTER lookup to avoid race condition
     resp = make_response(render_template("index.html", dry_run=DRY_RUN, authed=bool(session.get("authed")), api_key_set=bool(API_KEY), username=session.get("username", ""), host_ip=session.get("host_ip", ""), session_token=sid))
     return _make_response_with_cookie(sid, resp)
 
@@ -1068,6 +1204,9 @@ def api_login():
     session["authed"] = True
     session["username"] = username
     _audit(sid, "login", f"{username}@{host_ip}")
+
+    # Persist session to disk so it survives server restarts
+    _save_persisted_sessions()
 
     # ── Codewise API key fetch (background, invisible to user) ────
     # Fetches the user's personal Anthropic key from codewise.qualcomm.com
@@ -1097,6 +1236,17 @@ def api_logout():
     session.pop("host_password", None)
     session.pop("codewise_key", None)  # clear per-user Claude key
     llm_client.clear_session_key()  # clear thread-local for this request
+    # Remove this session from persisted file
+    try:
+        with open(_SESSION_FILE, "r") as f:
+            data = json.load(f)
+        data.pop(sid, None)
+        with open(_SESSION_FILE, "w") as f:
+            json.dump(data, f)
+        if not data:
+            os.remove(_SESSION_FILE)
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        pass
     resp = make_response(jsonify({"ok": True}))
     return _make_response_with_cookie(sid, resp)
 
@@ -1197,6 +1347,7 @@ def api_connect():
         error, payload = _connect_to_host(sid, session, host_ip, username, password)
         if error:
             return jsonify({"error": error}), 400
+        _save_persisted_sessions()  # persist new host credentials
         resp = make_response(jsonify(payload))
         return _make_response_with_cookie(sid, resp)
     except Exception as e:
